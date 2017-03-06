@@ -20,7 +20,7 @@ int compare (const void *a, const void *b) {
 }
 
 encrypted_string sort (char **s, unsigned len) {
-  char *word = malloc (sizeof (char *));
+  char *word = malloc (len * sizeof (char));
   strcpy (word, s[0]);
   qsort(s, len, sizeof(char *), compare);
   int index = 0;
@@ -37,7 +37,7 @@ encrypted_string sort (char **s, unsigned len) {
 }
 
 char *shift (int n, char *s) {
-  char *a = malloc (sizeof (char *));
+  char *a = malloc (strlen (s) *sizeof (char));
   unsigned i;
   for (i = 0; i < strlen (s); i++) {
     int pos = i+n;
@@ -87,10 +87,16 @@ int main (int argc, char **argv) {
     exit(EXIT_FAILURE);
   
   encrypted_string es = encrypt (argv[1]);
-  printf ("Encrypted Message : %d%s\n", es.index, es.s);
+  printf ("Encrypted Message : %d:%s\n", es.index, es.s);
 
   delta_encode(es.s, strlen(es.s));
-  printf("After Differential Encoding %x\n", es.s);
   free (es.s);
   return EXIT_SUCCESS;
 }
+
+
+/* 
+#define TAILLE_COUPE 40
+
+
+ */
