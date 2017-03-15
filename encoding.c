@@ -18,26 +18,26 @@ void print_array (uint8_t a) {
 
 int main (int argc, char **argv) {
   if (argc < 2) {
-    fprintf (stderr, "Encode: usage: bw <file>\n");
+    fprintf (stderr, "Encoding: usage: encoding <file>\n");
     exit (EXIT_FAILURE);
   }
   int fd = open (argv[1], O_RDONLY);
   if (fd == -1) {
-    fprintf (stderr, "Encode: couldn't open file\n");
+    fprintf (stderr, "Encoding: couldn't open file\n");
     exit (EXIT_FAILURE);
   }
   int result_file = open (RETURN_ENC, O_WRONLY | O_CREAT | O_TRUNC);
   if (result_file == -1) {
-    fprintf (stderr, "Encode: couldn't open to return result\n");
+    fprintf (stderr, "Encoding: couldn't open to return result\n");
     exit (EXIT_FAILURE);
   }
   uint8_t original, delta;
   if (read(fd, &original, sizeof(uint8_t)) <= 0) {
-    fprintf (stderr, "Encode: file opened is empty\n");
+    fprintf (stderr, "Encoding: file opened is empty\n");
     exit (EXIT_FAILURE);
   }
   if (write(result_file, &original, sizeof(uint8_t)) == -1) {
-    fprintf (stderr, "Encode: writing on file opened failed\n");
+    fprintf (stderr, "Encoding: writing on file opened failed\n");
     exit (EXIT_FAILURE);
   }
   delta = original;
@@ -47,7 +47,7 @@ int main (int argc, char **argv) {
     printf("%d ", original);
     delta = original;
     if (write(result_file, &original, sizeof(uint8_t)) == -1) {
-      fprintf (stderr, "Encode: writing on file opened failed\n");
+      fprintf (stderr, "Encoding: writing on file opened failed\n");
       exit (EXIT_FAILURE);
     }
   }
