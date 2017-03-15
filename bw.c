@@ -14,10 +14,10 @@
 #include <stdint.h>
 
 /* Size of each block passed through Burrows Wheeler */
-#define BLOCK_SIZE 40
+#define BLOCK_SIZE 20
 #define BUFFER_SIZE 10
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
-#define LETTER_SIZE 8
+#define LETTER_SIZE 1
 #define RETURN_BW "result_bw"
 
 void print_array (uint8_t a) {
@@ -27,14 +27,25 @@ void print_array (uint8_t a) {
   printf(" ");
 }
 
+void print_sort_tab (uint8_t **tab, unsigned block_size) {
+  unsigned i, j;
+  for (i = 0; i < block_size; i++) {
+    for (j = 0; j < block_size; j++) {
+      printf("%c", tab[i][j]);
+//      print_array (tab[i][j]);
+    }
+    printf("\n");
+  }
+  printf("\n");
+}
 
-int compare (const void *a, const void *b) {
+int compare (const void *a, const void *b, unsigned block_size) {
   uint8_t *_a = (uint8_t *) a;
   uint8_t *_b = (uint8_t *) b;
-  int i;
+  unsigned i;
 
   /* Little endian storage */
-  for (i = 0; i < BLOCK_SIZE; i++) {
+  for (i = 0; i < block_size; i++) {
     if (_a[i] != _b[i]) {
       return _a[i] - _b[i];
     }
@@ -42,13 +53,14 @@ int compare (const void *a, const void *b) {
   return 0;
 }
 
-void our_sort(uint8_t **tab) {
-  int i, j, min;
+/* Select tri, we need to modify it, to do it faster */
+void sort(uint8_t **tab, unsigned block_size) {
+  unsigned i, j, min;
   uint8_t *tmp;
-  for (i = 0; i < BLOCK_SIZE - 1; i++) {
+  for (i = 0; i < block_size - 1; i++) {
     min = i;
-    for (j = i + 1; j < BLOCK_SIZE; j++)
-      if (compare(tab[min], tab[j]) > 0)
+    for (j = i + 1; j < block_size; j++)
+      if (compare(tab[min], tab[j], block_size) > 0)
         min = j;
     if (min != i) {
       tmp = tab[i];
@@ -58,66 +70,49 @@ void our_sort(uint8_t **tab) {
   }
 }
 
-void sort(uint8_t *to_sort[], uint8_t s[]) {
-  /* Sort the array by lexicographical order */
-  //qsort (to_sort, BLOCK_SIZE, sizeof (uint8_t *), compare);
-  our_sort(to_sort);
-  unsigned index = 1;
-  int i, j;
-/*
-  for (i = 0; i < BLOCK_SIZE; i++) {
-    for (j = 0; j < BLOCK_SIZE; j++)
-      print_array (to_sort[i][j]);
-    printf("\n");
+uint8_t *shift (uint8_t *s, unsigned block_size) {
+  uint8_t *shifted_s = malloc (block_size * sizeof(uint8_t));
+  unsigned i;
+  /* For all uint8_t without the last */
+  for (i = 0; i < block_size - 1; i++) {
+    shifted_s[i + 1] = s[i];
+//    strncpy(&shifted_s[i + 1], &s[i], sizeof(uint8_t));
   }
-*/
-  int comp;
-  /* Search pos of the original string */
-  for (i = 0; i < BLOCK_SIZE; i++) {
-    if (compare(s + 1, to_sort[i]) == 0) {
-      index = i;
-      break;
-    }
-  }
-  s[0] = index;
-}
-
-
-uint8_t *shift (uint8_t *s) {
-  uint8_t *shifted_s = malloc (BLOCK_SIZE * sizeof(uint8_t));
-  int i;
-  for (i = 0; i < BLOCK_SIZE; i++) {
-    int pos = i + 1;
-    if (pos == BLOCK_SIZE)
-      pos = 0;
-    shifted_s[pos] = s[i];
-  }
+  /* And for the last uint8_t */
+  shifted_s[0] = s[block_size - 1];
+//  strncpy(&shifted_s[0], &s[block_size], sizeof(uint8_t));
   return shifted_s;
 }
 
-
-void burrows_wheeler (uint8_t *s) {
-  uint8_t **strings = malloc (sizeof (uint8_t *) * (BLOCK_SIZE));
-  unsigned i, j;
-  strings[0] = s + 1 ;
-  for (i = 1; i < BLOCK_SIZE; i++)
-    strings[i] = shift (strings[i-1]);
-  /*
-  for (i = 0; i < BLOCK_SIZE; i++) {
-    for (j = 0; j < BLOCK_SIZE; j++) {
-      print_array (strings[i][j]);
+void burrows_wheeler (uint8_t *s, unsigned block_size) {
+  uint8_t **strings = malloc (sizeof (uint8_t *) * (block_size));
+  unsigned i;
+  strings[0] = s + 1;
+//  strncpy(&strings[0], &s + 1, block_size);
+  for (i = 1; i < block_size; i++)
+    strings[i] = shift (strings[i-1], block_size);
+  //print_sort_tab (strings, block_size);
+  /* Sort the array by lexicographical order */
+  sort(strings, block_size);
+  //print_sort_tab (strings, block_size);
+  unsigned index = 1;
+  /* Search pos of the original string */
+  bool find_index = false;
+  for (i = 0; i < block_size; i++) {
+    s[i + 1] = strings[i][block_size - 1];
+    if (!find_index && compare(s + 1, strings[i], block_size) == 0) {
+      index = i;
+      find_index = true;
     }
-    printf("\n");
   }
-  printf("\n");
-  */
-  sort (strings, s);
-  /* for (i = 0; i < BLOCK_SIZE; i++) */
-  /*   free(strings[i]); */
+  s[0] = index;
+  /*
+  for (i = 0; i < block_size; i++) {
+    free(strings[i]);
+  }
   free (strings);
+  */
 }
-
-/* delta_encode */
 
 int main (int argc, char **argv) {
   if (argc < 2) {
@@ -135,13 +130,10 @@ int main (int argc, char **argv) {
 
   /* Should contain the index then the word */
   uint8_t array[BLOCK_SIZE + 1];
-  unsigned nb_blocks = size * 8 / (LETTER_SIZE * BLOCK_SIZE);
+  unsigned nb_blocks = size / (LETTER_SIZE * BLOCK_SIZE);
   unsigned size_last_block = size - (nb_blocks * LETTER_SIZE * BLOCK_SIZE);
   if (size_last_block != 0)
     nb_blocks++;
-/*
-FAIRE ATTENTION A GéRER LE CAS DE BW POUR LE DERNIER BLOCK.
-*/
 
   /* Choice to make:
    * write in a file to avoid to run out of memory
@@ -152,26 +144,29 @@ FAIRE ATTENTION A GéRER LE CAS DE BW POUR LE DERNIER BLOCK.
     fprintf (stderr, "BW: couldn't open to return result\n");
     exit (EXIT_FAILURE);
   }
-  uint8_t bw_file[size + nb_blocks];
-  unsigned i, j;
+//  uint8_t bw_file[size + nb_blocks];
+  unsigned i, j, block_size = BLOCK_SIZE;
   /* WARNING: LETTER_SIZE <= 8, or else not handled now */
   for (i = 0; i < nb_blocks; i++) {
-    for (j = 0; j < BLOCK_SIZE; j++) {
+    if (i == nb_blocks - 1)
+      block_size = size_last_block;
+    for (j = 0; j < block_size; j++) {
       array[j + 1] = 0;
       /* Fill the array before passing through Burrows Wheeler */
       read(fd, array + j + 1, 1);
     }
-    burrows_wheeler (array);
-    write(result_file, array, BLOCK_SIZE + 1);
-    //write(result_file, "\n", 1);
-    printf("%d", array[0]);
-    for (int k = 0; k < BLOCK_SIZE; k++)
+    burrows_wheeler (array, block_size);
+    write(result_file, array, block_size + 1);
+    /* Print the result of bw program */
+/*    printf("%d", array[0]);
+    for (int k = 0; k < block_size; k++)
       printf("%c", array[k + 1]);
     printf("\n");
+*/
     /* Write into memory */
-    for (j = 0; j < BLOCK_SIZE + 1; j++)
-      bw_file[j + i * (BLOCK_SIZE + 1)] = array[j];
-  }
+/*    for (j = 0; j < block_size + 1; j++)
+      bw_file[j + i * (block_size + 1)] = array[j];
+*/  }
   close (fd);
   close (result_file);
   return EXIT_SUCCESS;
