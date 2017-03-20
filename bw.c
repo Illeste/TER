@@ -139,7 +139,7 @@ int main (int argc, char **argv) {
    * write in a file to avoid to run out of memory
    * write in memory
    */
-  int result_file = open (RETURN_BW, O_WRONLY | O_CREAT | O_TRUNC);
+  int result_file = open (RETURN_BW, O_WRONLY | O_CREAT | O_TRUNC, 0666);
   if (result_file == -1) {
     fprintf (stderr, "BW: couldn't open to return result\n");
     exit (EXIT_FAILURE);
@@ -158,15 +158,16 @@ int main (int argc, char **argv) {
     burrows_wheeler (array, block_size);
     write(result_file, array, block_size + 1);
     /* Print the result of bw program */
-/*    printf("%d", array[0]);
-    for (int k = 0; k < block_size; k++)
-      printf("%c", array[k + 1]);
-    printf("\n");
-*/
+    /*    printf("%d", array[0]);
+	  for (int k = 0; k < block_size; k++)
+	  printf("%c", array[k + 1]);
+	  printf("\n");
+    */
     /* Write into memory */
-/*    for (j = 0; j < block_size + 1; j++)
-      bw_file[j + i * (block_size + 1)] = array[j];
-*/  }
+    /*    for (j = 0; j < block_size + 1; j++)
+	  bw_file[j + i * (block_size + 1)] = array[j];
+    */
+  }
   close (fd);
   close (result_file);
   return EXIT_SUCCESS;

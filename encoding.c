@@ -26,7 +26,7 @@ int main (int argc, char **argv) {
     fprintf (stderr, "Encoding: couldn't open file\n");
     exit (EXIT_FAILURE);
   }
-  int result_file = open (RETURN_ENC, O_WRONLY | O_CREAT | O_TRUNC);
+  int result_file = open (RETURN_ENC, O_WRONLY | O_CREAT | O_TRUNC, 0666);
   if (result_file == -1) {
     fprintf (stderr, "Encoding: couldn't open to return result\n");
     exit (EXIT_FAILURE);
@@ -43,14 +43,16 @@ int main (int argc, char **argv) {
   delta = original;
   printf("%d ", original);
   while (read(fd, &original, sizeof(uint8_t)) > 0) {
-    original -= delta;
-    printf("%d ", original);
-    delta = original;
-    if (write(result_file, &original, sizeof(uint8_t)) == -1) {
+    uint8_t new_val = original - delta;
+    printf("%d ", new_val);
+    if (write(result_file, &new_val, sizeof(uint8_t)) == -1) {
       fprintf (stderr, "Encoding: writing on file opened failed\n");
       exit (EXIT_FAILURE);
     }
+    delta = original;
+
   }
+
   printf("\n");
   close (fd);
   close (result_file);
