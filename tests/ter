@@ -1,0 +1,36 @@
+Stockage des lettres de l'alphabet de taille SIZE_LETTRE : Alphabet de taille 2^SIZE_LETTRE
+
+Read de notre fichier: k octets par k octets
+
+k > 1
+
+On suppose size lettre a 8 (si 4 / 2, si plus ntm)
+si la taille de notre mot pour BW est de 40 = 8(bits) * 40(lettres),
+on lit 40 octets avec read
+
+on fait un uint8_t[40] où on stocke le mot que l'on passe a  BW
+
+BW nous rend mot "trié" + index : on passe l'index en binaire alphabet
+on stocke ca dans un uint8 [41]
+
+2 options :
+Faire ca sur tooouuuuuuuuuuuuuuut le fichier avant le delta encoding
+Faire des petits delta encoding sur nos mots, recoller la suite apres
+
+On analyse une partie de notre chaine avant huffman sur une taille (50000)
+sur cette taille, on fait un compteur du nombre d'apparitions de chaque lettre
+--> proba d'apparition de chaque lettre p1 = 0.4, ... pn = 0.0000001
+arbre qu'on a vu au semestre 7
+Huffman "lettre" par "lettre"
+
+Huffman nous rend un code prefixe, avec normalement 000...0 encodé en 0
+on remplace dans notre chaine toutes les lettres par leur equivalent avec Huffman
+
+fichier: commence par le codage huffman
+puis le bordel encodé
+
+Dans ton code prefixe, on doit coder 2^SIZE_LETTRE trucs
+
+Au pire dans BW
+index     mot transformé
+10000101 10110101 10110101 10110101 10110101 10110101 11110001 11110001 11110001 11110001 11111111

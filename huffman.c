@@ -10,7 +10,7 @@
 #define DATA_READ 50000
 /* Should be 2**LETTER_SIZE */
 #define ALPHABET_SIZE 256
-  
+
 /* Huffman tree */
 
 typedef struct node {
@@ -42,7 +42,7 @@ node_t *create_leaf (node_t *n) {
   leaf->data = n->data;
   return leaf;
 }
-/* Creates a node with subnodes n1 and n2, 
+/* Creates a node with subnodes n1 and n2,
  * and overwrites in with the amount of children */
 node_t *create_node (node_t *n1, node_t *n2) {
   node_t *node = malloc (sizeof (*node));
@@ -54,20 +54,35 @@ node_t *create_node (node_t *n1, node_t *n2) {
 
 /* TODO: If array is sorted from decreasingly, change for loop to -- */
 void get_min_amounts (node_t **cd, int *i1, int *i2) {
-  int index_min = 1, index = 0;
+  int index_min, index, i;
+  // Find the first valid index
+  for (i = 1; i < ALPHABET_SIZE; i++)
+    if (cd[i]) {
+      index = i;
+      break;
+    }
+  // Find the second valid index
+  for (i++; i < ALPHABET_SIZE; i++)
+    if (cd[i]) {
+      index_min = i;
+      break;
+    }
+  // Sort them
   if (cd[index]->amount < cd[index_min]->amount) {
-    index_min = 0;
-    index = 1;
+    int tmp = index_min;
+    index_min = index;
+    index = tmp;
   }
-
-  for (int i = 1; i < ALPHABET_SIZE; i++) {
+  // Find, if possible, other index with lower amount
+  for (i++; i < ALPHABET_SIZE; i++) {
     if (cd[i] && cd[i]->amount < cd[index]->amount) {
       if (cd[i]->amount < cd[index_min]->amount) {
-	index = index_min;
-	index_min = i;
+      	index = index_min;
+      	index_min = i;
       }
-      else
-	index = i;
+      else {
+      	index = i;
+      }
     }
   }
   *i1 = index_min;
@@ -82,11 +97,14 @@ node_t *huffman_tree (node_t **cd, unsigned amount_left) {
     if (amount_left <= 2) {
       get_min_amounts (cd, &i1, &i2);
       root = create_node (cd[i2], cd[i1]);
+      printf("noeud entre %d et %d \n", i2, i1);
       break;
     }
     get_min_amounts (cd, &i1, &i2);
     cd[i2] = create_node (cd[i2], cd[i1]);
-    cd[i1]->amount = DATA_READ + 1;
+    printf("noeud entre %d et %d \n", i2, i1);
+    cd[i1] = NULL;
+//  cd[i1]->amount = DATA_READ + 1;
     amount_left --;
   }
   return root;
@@ -106,7 +124,7 @@ uint8_t *deep_transform (uint8_t *encoding, unsigned depth,
   if (last_bit != 2) {
     encoding[index] = (encoding[index] << 1) + last_bit;
   }
-  
+
   return ret;
 }
 
@@ -117,7 +135,7 @@ void huffman_encoding (node_t *node, transform_t *array,
     uint8_t *enc;
     if (node->left) {
       enc = deep_transform (encoding, depth, 0);
-      huffman_encoding (node->left, array, depth + 1, encoding); 
+      huffman_encoding (node->left, array, depth + 1, encoding);
       free (enc);
     }
     if (node->right) {
@@ -208,10 +226,12 @@ int main (int argc, char **argv) {
     else
       tab[(int)data]->amount++;
   }
-  sort(tab, ALPHABET_SIZE);
+//  ne marche pas, inverse les identifiants lignes et les data
+//  sort(tab, ALPHABET_SIZE);
   unsigned k = 0;
   for (int j = 0; j < ALPHABET_SIZE; j++) {
     if (tab[j] != NULL) {
+      printf ("j = %d,   ",j);
       print_array (tab[j]->data);
       printf (", data : %d, amount = %u\n", tab[j]->data, tab[j]->amount);
       k += tab[j]->amount;
@@ -222,15 +242,18 @@ int main (int argc, char **argv) {
   node_t *root = huffman_tree (tab, nb_letters);
   /* Free "tab" */
   transform_t *array = malloc (sizeof (transform_t ) * ALPHABET_SIZE);
-  huffman_encoding (root, array, 0, 0);
+  uint8_t init_encoding = 0;
+  huffman_encoding (root, array, 0, &init_encoding);
 
   /* Print encoding */
   for (int j = 0; j < ALPHABET_SIZE; j++) {
+    if (array[j].encoding) {
       print_array (j);
       printf (", ");
       /* print par rapport au depth le truc par lequel on remplace */
       print_encoding (array[j]);
       printf("\n");
+    }
   }
   free(array);
   free(root);
