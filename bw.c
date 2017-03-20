@@ -14,8 +14,7 @@
 #include <stdint.h>
 
 /* Size of each block passed through Burrows Wheeler */
-#define BLOCK_SIZE 20
-#define BUFFER_SIZE 10
+#define BLOCK_SIZE 50
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
 #define LETTER_SIZE 1
 #define RETURN_BW "result_bw"

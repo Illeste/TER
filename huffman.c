@@ -1,13 +1,14 @@
 #define _GNU_SOURCE
 
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #define RETURN_HUF "result_huffman"
 /* Amount of data scanned */
-#define DATA_READ 50000
+#define DATA_READ 100000
 /* Should be 2**LETTER_SIZE */
 #define ALPHABET_SIZE 256
 
@@ -52,20 +53,20 @@ node_t *create_node (node_t *n1, node_t *n2) {
   return node;
 }
 
-/* TODO: If array is sorted from decreasingly, change for loop to -- */
 void get_min_amounts (node_t **cd, int *i1, int *i2) {
-  int index_min, index, i;
-  // Find the first valid index
-  for (i = 1; i < ALPHABET_SIZE; i++)
+  int index_min = 0, index = 0, i;
+  bool first = false;
+  // Find two valid indexes
+  for (i = 0; i < ALPHABET_SIZE; i++)
     if (cd[i]) {
-      index = i;
-      break;
-    }
-  // Find the second valid index
-  for (i++; i < ALPHABET_SIZE; i++)
-    if (cd[i]) {
-      index_min = i;
-      break;
+      if (first) {
+	index_min = i;
+	break;
+      }
+      else {
+	index = i;
+	first = true;
+      }
     }
   // Sort them
   if (cd[index]->amount < cd[index_min]->amount) {
@@ -95,16 +96,15 @@ node_t *huffman_tree (node_t **cd, unsigned amount_left) {
   int i1, i2;
   while (1) {
     if (amount_left <= 2) {
+      /* Form root with the last nodes */
       get_min_amounts (cd, &i1, &i2);
       root = create_node (cd[i2], cd[i1]);
-      printf("noeud entre %d et %d \n", i2, i1);
       break;
     }
+    /* Create a node from the 2 lowest frequencies of apparition */
     get_min_amounts (cd, &i1, &i2);
     cd[i2] = create_node (cd[i2], cd[i1]);
-    printf("noeud entre %d et %d \n", i2, i1);
     cd[i1] = NULL;
-//  cd[i1]->amount = DATA_READ + 1;
     amount_left --;
   }
   return root;
@@ -122,7 +122,7 @@ uint8_t *deep_transform (uint8_t *encoding, unsigned depth,
   }
   /* Optimization for copying encoding into the array */
   if (last_bit != 2) {
-    encoding[index] = (encoding[index] << 1) + last_bit;
+    ret[index] = (encoding[index] << 1) + last_bit;
   }
 
   return ret;
@@ -135,12 +135,12 @@ void huffman_encoding (node_t *node, transform_t *array,
     uint8_t *enc;
     if (node->left) {
       enc = deep_transform (encoding, depth, 0);
-      huffman_encoding (node->left, array, depth + 1, encoding);
+      huffman_encoding (node->left, array, depth + 1, enc);
       free (enc);
     }
     if (node->right) {
       enc = deep_transform (encoding, depth, 1);
-      huffman_encoding (node->right, array, depth + 1, encoding);
+      huffman_encoding (node->right, array, depth + 1, enc);
       free (enc);
     }
   }
@@ -150,7 +150,6 @@ void huffman_encoding (node_t *node, transform_t *array,
     array[node->data].encoding = deep_transform (encoding, depth, 2);
   }
 }
-
 
 
 /* Select a better/faster sort */
@@ -173,21 +172,29 @@ void sort(node_t **tab, unsigned size) {
   }
 }
 
-
-
 void print_encoding (transform_t t) {
   unsigned i, j;
-  for (i = 0; i < t.depth / 8; i++) {
-    for (j = 7; j != 0; j--)
-      (t.encoding[i] & (1 << j)) == 0 ?printf("0"): printf("1");
+  for (i = 0; i < (t.depth + 1) / 8; i++) {
+    for (j = 8; j != 0; j--)
+      (t.encoding[i] & (1 << (j - 1))) == 0 ?printf("0"): printf("1");
   }
-  if (t.depth % 8) {
+  if ((t.depth + 1)  % 8) {
     for (j = t.depth % 8; j != 0; j--)
       (t.encoding[i] & (1 << (j-1))) == 0 ?printf("0"): printf("1");
   }
 }
 
-
+void free_tree (node_t *node) {
+  if (node) {
+    if (node->left || node->right) {
+      if (node->left)
+	free_tree (node->left);
+      if (node->right)
+	free_tree (node->right);
+    }
+    free (node);
+  }
+}
 
 int main (int argc, char **argv) {
   if (argc < 2) {
@@ -199,19 +206,6 @@ int main (int argc, char **argv) {
     fprintf (stderr, "Huffman: couldn't open file\n");
     exit (EXIT_FAILURE);
   }
-  /*
-  int result_file = open (RETURN_HUF, O_WRONLY | O_CREAT | O_TRUNC);
-  if (result_file == -1) {
-    fprintf (stderr, "Encode: couldn't open to return result\n");
-    exit (EXIT_FAILURE);
-  }
-  */
-  /*
-  if (write(result_file, &original, sizeof(uint8_t)) == -1) {
-    fprintf (stderr, "Encode: writing on file opened failed\n");
-    exit (EXIT_FAILURE);
-  }
-  */
   uint8_t data;
   node_t **tab = malloc (sizeof (node_t *) * ALPHABET_SIZE);
   unsigned i = 0, nb_letters = 0;
@@ -233,30 +227,31 @@ int main (int argc, char **argv) {
     if (tab[j] != NULL) {
       printf ("j = %d,   ",j);
       print_array (tab[j]->data);
-      printf (", data : %d, amount = %u\n", tab[j]->data, tab[j]->amount);
+      printf (", amount = %u\n", tab[j]->amount);
       k += tab[j]->amount;
     }
   }
-  printf("\nOut of %u data analized", i);
+  printf("\nOut of %u data analyzed", i);
   printf("\n");
   node_t *root = huffman_tree (tab, nb_letters);
   /* Free "tab" */
   transform_t *array = malloc (sizeof (transform_t ) * ALPHABET_SIZE);
   uint8_t init_encoding = 0;
   huffman_encoding (root, array, 0, &init_encoding);
-
+  
   /* Print encoding */
+  printf("\nEncoding: <word> to <encoding>\n");
   for (int j = 0; j < ALPHABET_SIZE; j++) {
     if (array[j].encoding) {
       print_array (j);
-      printf (", ");
+      printf (" to ");
       /* print par rapport au depth le truc par lequel on remplace */
       print_encoding (array[j]);
       printf("\n");
     }
   }
-  free(array);
-  free(root);
+  free (array);
+  free_tree (root);
   close (fd);
   return EXIT_SUCCESS;
 }
