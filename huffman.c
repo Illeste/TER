@@ -94,18 +94,17 @@ node_t *huffman_tree (node_t **cd, unsigned amount_left) {
   node_t *root;
   int i1, i2;
   while (1) {
-    if (amount_left <= 2) {
-      /* Form root with the last nodes */
-      get_min_amounts (cd, &i1, &i2);
-      root = create_node (cd[i2], cd[i1]);
+    if (amount_left <= 2)
       break;
-    }
     /* Create a node from the 2 lowest frequencies of apparition */
     get_min_amounts (cd, &i1, &i2);
     cd[i2] = create_node (cd[i2], cd[i1]);
     cd[i1] = NULL;
     amount_left --;
   }
+  /* Form root with the last nodes */
+  get_min_amounts (cd, &i1, &i2);
+  root = create_node (cd[i2], cd[i1]);
   return root;
 }
 
@@ -212,6 +211,8 @@ int main (int argc, char **argv) {
       node_t *new_data = malloc (sizeof (node_t));
       new_data->data = data;
       new_data->amount = 1;
+      new_data->left = NULL;
+      new_data->right = NULL;
       tab[(int)data] = new_data;
       nb_letters++;
     }

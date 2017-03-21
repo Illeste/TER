@@ -14,7 +14,7 @@
 #include <stdint.h>
 
 /* Size of each block passed through Burrows Wheeler */
-#define BLOCK_SIZE 50
+#define BLOCK_SIZE 20
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
 #define LETTER_SIZE 1
 #define RETURN_BW "result_bw"
@@ -75,25 +75,23 @@ uint8_t *shift (uint8_t *s, unsigned block_size) {
   /* For all uint8_t without the last */
   for (i = 0; i < block_size - 1; i++) {
     shifted_s[i + 1] = s[i];
-//    strncpy(&shifted_s[i + 1], &s[i], sizeof(uint8_t));
   }
   /* And for the last uint8_t */
   shifted_s[0] = s[block_size - 1];
-//  strncpy(&shifted_s[0], &s[block_size], sizeof(uint8_t));
   return shifted_s;
 }
 
 void burrows_wheeler (uint8_t *s, unsigned block_size) {
   uint8_t **strings = malloc (sizeof (uint8_t *) * (block_size));
   unsigned i;
-  strings[0] = s + 1;
-//  strncpy(&strings[0], &s + 1, block_size);
+  strings[0] = malloc (sizeof (uint8_t) * block_size);
+  for (i = 0; i < block_size; i++) {
+    strings[0][i] = s[i + 1];
+  }
   for (i = 1; i < block_size; i++)
-    strings[i] = shift (strings[i-1], block_size);
-  //print_sort_tab (strings, block_size);
+    strings[i] = shift (strings[i - 1], block_size);
   /* Sort the array by lexicographical order */
   sort(strings, block_size);
-  //print_sort_tab (strings, block_size);
   unsigned index = 1;
   /* Search pos of the original string */
   bool find_index = false;
@@ -105,12 +103,12 @@ void burrows_wheeler (uint8_t *s, unsigned block_size) {
     }
   }
   s[0] = index;
-  /*
+
   for (i = 0; i < block_size; i++) {
     free(strings[i]);
   }
   free (strings);
-  */
+
 }
 
 int main (int argc, char **argv) {
@@ -128,7 +126,7 @@ int main (int argc, char **argv) {
   lseek (fd, 0, SEEK_SET);
 
   /* Should contain the index then the word */
-  uint8_t array[BLOCK_SIZE + 1];
+  uint8_t *array = malloc (sizeof (uint8_t) * (BLOCK_SIZE + 1));
   unsigned nb_blocks = size / (LETTER_SIZE * BLOCK_SIZE);
   unsigned size_last_block = size - (nb_blocks * LETTER_SIZE * BLOCK_SIZE);
   if (size_last_block != 0)
@@ -143,30 +141,21 @@ int main (int argc, char **argv) {
     fprintf (stderr, "BW: couldn't open to return result\n");
     exit (EXIT_FAILURE);
   }
-//  uint8_t bw_file[size + nb_blocks];
-  unsigned i, j, block_size = BLOCK_SIZE;
+  unsigned i, j;
   /* WARNING: LETTER_SIZE <= 8, or else not handled now */
   for (i = 0; i < nb_blocks; i++) {
-    if (i == nb_blocks - 1)
-      block_size = size_last_block;
-    for (j = 0; j < block_size; j++) {
+    for (j = 0; j < BLOCK_SIZE; j++) {
       array[j + 1] = 0;
       /* Fill the array before passing through Burrows Wheeler */
       read(fd, array + j + 1, 1);
     }
-    burrows_wheeler (array, block_size);
-    write(result_file, array, block_size + 1);
-    /* Print the result of bw program */
-    /*    printf("%d", array[0]);
-	  for (int k = 0; k < block_size; k++)
-	  printf("%c", array[k + 1]);
-	  printf("\n");
-    */
-    /* Write into memory */
-    /*    for (j = 0; j < block_size + 1; j++)
-	  bw_file[j + i * (block_size + 1)] = array[j];
-    */
+    if (i == nb_blocks - 1)
+      burrows_wheeler (array, size_last_block);
+    else
+      burrows_wheeler (array, BLOCK_SIZE);
+    write(result_file, array, BLOCK_SIZE + 1);
   }
+  free (array);
   close (fd);
   close (result_file);
   return EXIT_SUCCESS;
