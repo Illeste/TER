@@ -41,19 +41,14 @@ int main (int argc, char **argv) {
     exit (EXIT_FAILURE);
   }
   delta = original;
-  printf("%d ", original);
   while (read(fd, &original, sizeof(uint8_t)) > 0) {
     uint8_t new_val = original - delta;
-    printf("%d ", new_val);
     if (write(result_file, &new_val, sizeof(uint8_t)) == -1) {
       fprintf (stderr, "Encoding: writing on file opened failed\n");
       exit (EXIT_FAILURE);
     }
     delta = original;
-
   }
-
-  printf("\n");
   close (fd);
   close (result_file);
   return EXIT_SUCCESS;

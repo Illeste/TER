@@ -33,7 +33,6 @@ void print_array (uint8_t a) {
     (a & (1 << i)) == 0 ?printf("0"): printf("1");
 }
 
-
 /* Huffman coding */
 node_t *create_leaf (node_t *n) {
   node_t *leaf = malloc (sizeof (*leaf));
@@ -60,12 +59,12 @@ void get_min_amounts (node_t **cd, int *i1, int *i2) {
   for (i = 0; i < ALPHABET_SIZE; i++)
     if (cd[i]) {
       if (first) {
-	index_min = i;
-	break;
+        index_min = i;
+        break;
       }
       else {
-	index = i;
-	first = true;
+        index = i;
+        first = true;
       }
     }
   // Sort them
@@ -78,11 +77,11 @@ void get_min_amounts (node_t **cd, int *i1, int *i2) {
   for (i++; i < ALPHABET_SIZE; i++) {
     if (cd[i] && cd[i]->amount < cd[index]->amount) {
       if (cd[i]->amount < cd[index_min]->amount) {
-      	index = index_min;
-      	index_min = i;
+        index = index_min;
+        index_min = i;
       }
       else {
-      	index = i;
+        index = i;
       }
     }
   }
@@ -111,8 +110,7 @@ node_t *huffman_tree (node_t **cd, unsigned amount_left) {
 }
 
 
-uint8_t *deep_transform (uint8_t *encoding, unsigned depth,
-			     uint8_t last_bit) {
+uint8_t *deep_transform (uint8_t *encoding, unsigned depth, uint8_t last_bit) {
   /* 8 is the size of uint8_t in bits */
   unsigned index = depth / 8;
   uint8_t *ret = malloc (sizeof (uint8_t) * (index + 1));
@@ -130,7 +128,7 @@ uint8_t *deep_transform (uint8_t *encoding, unsigned depth,
 
 
 void huffman_encoding (node_t *node, transform_t *array,
-		       unsigned depth, uint8_t *encoding) {
+           unsigned depth, uint8_t *encoding) {
   if (node->left || node->right) {
     uint8_t *enc;
     if (node->left) {
@@ -145,7 +143,7 @@ void huffman_encoding (node_t *node, transform_t *array,
     }
   }
   else {
-  /* Leaf */
+    /* Leaf */
     array[node->data].depth = depth;
     array[node->data].encoding = deep_transform (encoding, depth, 2);
   }
@@ -188,9 +186,9 @@ void free_tree (node_t *node) {
   if (node) {
     if (node->left || node->right) {
       if (node->left)
-	free_tree (node->left);
+        free_tree (node->left);
       if (node->right)
-	free_tree (node->right);
+        free_tree (node->right);
     }
     free (node);
   }
@@ -220,6 +218,7 @@ int main (int argc, char **argv) {
     else
       tab[(int)data]->amount++;
   }
+  close (fd);
 //  ne marche pas, inverse les identifiants lignes et les data
 //  sort(tab, ALPHABET_SIZE);
   unsigned k = 0;
@@ -238,11 +237,12 @@ int main (int argc, char **argv) {
   transform_t *array = malloc (sizeof (transform_t ) * ALPHABET_SIZE);
   uint8_t init_encoding = 0;
   huffman_encoding (root, array, 0, &init_encoding);
-  
+
   /* Print encoding */
   printf("\nEncoding: <word> to <encoding>\n");
   for (int j = 0; j < ALPHABET_SIZE; j++) {
     if (array[j].encoding) {
+      printf("%u : ", j);
       print_array (j);
       printf (" to ");
       /* print par rapport au depth le truc par lequel on remplace */
@@ -250,8 +250,73 @@ int main (int argc, char **argv) {
       printf("\n");
     }
   }
+
+  /* Now we read again the file and write the translate thanks to array */
+  fd = open (argv[1], O_RDONLY);
+  if (fd == -1) {
+    fprintf (stderr, "Huffman: couldn't open file\n");
+    exit (EXIT_FAILURE);
+  }
+  int result_file = open (RETURN_HUF, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+  if (result_file == -1) {
+    fprintf (stderr, "Huffman: couldn't open to return result\n");
+    exit (EXIT_FAILURE);
+  }
+  uint8_t data_read, data_to_write = 0;
+  unsigned width = 0;
+  for (i = 0; read(fd, &data_read, sizeof(uint8_t)) > 0; i++) {
+    /* Code of function print_encoding, with some modification */
+    unsigned k, l;
+    for (k = 0; k < (array[data_read].depth + 1) / 8; k++) {
+      for (l = 8; l != 0; l--) {
+        if (!(array[data_read].encoding[k] & (1 << (l - 1))))
+          data_to_write = data_to_write << 1;
+        else
+          data_to_write = (data_to_write << 1) + 1;
+        width++;
+        if (width == 8) {
+          if (write(result_file, &data_to_write, sizeof(uint8_t)) == -1) {
+            fprintf (stderr, "Huffman: writing on file opened failed\n");
+            exit (EXIT_FAILURE);
+          }
+          width = 0;
+          data_to_write = 0;
+        }
+      }
+    }
+    if ((array[data_read].depth + 1)  % 8) {
+      for (l = array[data_read].depth % 8; l != 0; l--) {
+        if (!(array[data_read].encoding[k] & (1 << (l - 1))))
+          data_to_write = data_to_write << 1;
+        else
+          data_to_write = (data_to_write << 1) + 1;
+        width++;
+        if (width == 8) {
+          if (write(result_file, &data_to_write, sizeof(uint8_t)) == -1) {
+            fprintf (stderr, "Huffman: writing on file opened failed\n");
+            exit (EXIT_FAILURE);
+          }
+          width = 0;
+          data_to_write = 0;
+        }
+      }
+    }
+  }
+  // One last value to write
+  if (width != 0) {
+    while (width != 8) {
+      data_to_write = data_to_write << 1;
+      width++;
+    }
+    if (write(result_file, &data_to_write, sizeof(uint8_t)) == -1) {
+      fprintf (stderr, "Huffman: writing on file opened failed\n");
+      exit (EXIT_FAILURE);
+    }
+  }
+
   free (array);
   free_tree (root);
+  close (result_file);
   close (fd);
   return EXIT_SUCCESS;
 }
