@@ -29,7 +29,7 @@ int main (int argc, char **argv) {
     exit (EXIT_FAILURE);
   }
   uint8_t original;
-  uint8_t *reading_tab = malloc (sizeof (int) * (NB_CHAR));
+  uint8_t *reading_tab = malloc (sizeof (uint8_t) * (NB_CHAR));
   for (int i = 0; i < NB_CHAR; i++)
     reading_tab[i] = 0;
   while (read(fd, &original, sizeof(uint8_t)) > 0)
@@ -37,11 +37,15 @@ int main (int argc, char **argv) {
   close(fd);
   /* Create a new language only with the alphabet of file */
   int count = 0;
+  uint8_t first;
   for (int i = 0; i < NB_CHAR; i++)
     if (reading_tab[i] != 0) {
       reading_tab[i] = count;
       count++;
+      if (count == 1)
+        first = (uint8_t)i;
     }
+
 /*
   printf("On a %u lettres avec comme language :\n", count);
   for (int i = 0; i < NB_CHAR; i++)
@@ -51,6 +55,22 @@ int main (int argc, char **argv) {
       printf("\n");
     }
 */
+
+  uint8_t *dictionary = malloc (sizeof (uint8_t) * count);
+  dictionary[0] = first;
+  int j = 1;
+  for (int i = 0; i < NB_CHAR; i++)
+    if (reading_tab[i] != 0) {
+      dictionary[j] = (uint8_t)i ;
+      j++;
+    }
+
+  printf("On a %u lettres dans le dictionnaire :(", count);
+  for (int i = 0; i < count; i++)
+    printf("%u,", dictionary[i]);
+  printf(")\n");
+
+
   fd = open (argv[1], O_RDONLY);
   if (fd == -1) {
     fprintf (stderr, "Encoding: couldn't open file\n");
