@@ -10,6 +10,11 @@
 
 #define NB_CHAR 256
 
+struct list {
+  uint8_t data;
+  struct list *suivant;
+} list;
+
 void print_array (uint8_t a) {
   int i;
   for (i = 7; i >= 0; i--)
@@ -17,6 +22,14 @@ void print_array (uint8_t a) {
   printf(" ");
 }
 /* delta_encode */
+
+void swap (uint8_t *dict, int i) {
+  uint8_t tmp = dict[i];
+  for (int j = i; j > 0; j--) {
+    dict[j] = dict[j - 1];
+  }
+  dict[0] = tmp;
+}
 
 int main (int argc, char **argv) {
   if (argc < 2) {
@@ -30,7 +43,8 @@ int main (int argc, char **argv) {
   }
   uint8_t original;
   uint8_t *reading_tab = malloc (sizeof (uint8_t) * (NB_CHAR));
-  for (int i = 0; i < NB_CHAR; i++)
+  int i = 0;
+  for (i = 0; i < NB_CHAR; i++)
     reading_tab[i] = 0;
   while (read(fd, &original, sizeof(uint8_t)) > 0)
     reading_tab[original] = 1;
@@ -38,7 +52,7 @@ int main (int argc, char **argv) {
   /* Create a new language only with the alphabet of file */
   int count = 0;
   uint8_t first;
-  for (int i = 0; i < NB_CHAR; i++)
+  for (i = 0; i < NB_CHAR; i++)
     if (reading_tab[i] != 0) {
       reading_tab[i] = count;
       count++;
@@ -59,14 +73,14 @@ int main (int argc, char **argv) {
   uint8_t *dictionary = malloc (sizeof (uint8_t) * count);
   dictionary[0] = first;
   int j = 1;
-  for (int i = 0; i < NB_CHAR; i++)
+  for (i = 0; i < NB_CHAR; i++)
     if (reading_tab[i] != 0) {
       dictionary[j] = (uint8_t)i ;
       j++;
     }
 
   printf("On a %u lettres dans le dictionnaire :(", count);
-  for (int i = 0; i < count; i++)
+  for (i = 0; i < count; i++)
     printf("%u,", dictionary[i]);
   printf(")\n");
 
@@ -81,6 +95,7 @@ int main (int argc, char **argv) {
     fprintf (stderr, "Encoding: couldn't open to return result\n");
     exit (EXIT_FAILURE);
   }
+  /*
   uint8_t delta;
   if (read(fd, &original, sizeof(uint8_t)) <= 0) {
     fprintf (stderr, "Encoding: file opened is empty\n");
@@ -92,9 +107,17 @@ int main (int argc, char **argv) {
     exit (EXIT_FAILURE);
   }
   delta = original;
+*/
+  uint8_t new_val;
   while (read(fd, &original, sizeof(uint8_t)) > 0) {
-    new_val = (((reading_tab[original] - reading_tab[delta]) % count)
-              + count) % count;
+    for (i = 0; dictionary[i] != original; i++) {}
+    new_val = (uint8_t)i;
+    swap(dictionary, i);
+    printf("orig = %c   , new_val =%u    ", original, new_val);
+    printf("On a %u lettres dans le dictionnaire :(", count);
+    for (i = 0; i < count; i++)
+      printf("%u,", dictionary[i]);
+    printf(")\n");
 /*
     printf("original = ");
     print_array(original);
@@ -110,7 +133,6 @@ int main (int argc, char **argv) {
       fprintf (stderr, "Encoding: writing on file opened failed\n");
       exit (EXIT_FAILURE);
     }
-    delta = original;
   }
   close (fd);
   close (result_file);
