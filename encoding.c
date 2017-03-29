@@ -12,8 +12,10 @@
 
 struct list {
   uint8_t data;
-  struct list *suivant;
-} list;
+  struct list *next;
+};
+
+typedef struct list *list;
 
 void print_array (uint8_t a) {
   int i;
@@ -23,12 +25,10 @@ void print_array (uint8_t a) {
 }
 /* delta_encode */
 
-void swap (uint8_t *dict, int i) {
-  uint8_t tmp = dict[i];
-  for (int j = i; j > 0; j--) {
-    dict[j] = dict[j - 1];
-  }
-  dict[0] = tmp;
+void swap (list first, list to_change, list prev_to_change) {
+  list tmp = to_change;
+  prev_to_change->next = to_change->next;
+  tmp->next = first;
 }
 
 int main (int argc, char **argv) {
@@ -69,19 +69,25 @@ int main (int argc, char **argv) {
       printf("\n");
     }
 */
-
-  uint8_t *dictionary = malloc (sizeof (uint8_t) * count);
-  dictionary[0] = first;
-  int j = 1;
+  list begin = malloc (sizeof (struct list));
+  begin->data = first;
+  begin->next = NULL;
+  list tmp = begin;
   for (i = 0; i < NB_CHAR; i++)
     if (reading_tab[i] != 0) {
-      dictionary[j] = (uint8_t)i ;
-      j++;
+      list next = malloc (sizeof (struct list));
+      next->data = (uint8_t)i;
+      next->next = NULL;
+      tmp->next = next;
+      tmp = next;
     }
 
+  tmp = begin;
   printf("On a %u lettres dans le dictionnaire :(", count);
-  for (i = 0; i < count; i++)
-    printf("%u,", dictionary[i]);
+  for (i = 0; i < count; i++) {
+    printf("%u,", tmp->data);
+    tmp = tmp->next;
+  }
   printf(")\n");
 
 
@@ -108,16 +114,28 @@ int main (int argc, char **argv) {
   }
   delta = original;
 */
+  list prev;
   uint8_t new_val;
   while (read(fd, &original, sizeof(uint8_t)) > 0) {
-    for (i = 0; dictionary[i] != original; i++) {}
+    tmp = begin;
+    for (i = 0; tmp->data != original; i++) {
+      prev = tmp;
+      tmp = tmp->next;
+    }
     new_val = (uint8_t)i;
-    swap(dictionary, i);
+    if (i != 0) {
+      swap(begin, tmp, prev);
+      begin = tmp;
+    }
+    /*
     printf("orig = %c   , new_val =%u    ", original, new_val);
     printf("On a %u lettres dans le dictionnaire :(", count);
-    for (i = 0; i < count; i++)
-      printf("%u,", dictionary[i]);
+    for (i = 0; i < count; i++) {
+      printf("%u,", tmp->data);
+      tmp = tmp->next;
+    }
     printf(")\n");
+    */
 /*
     printf("original = ");
     print_array(original);
@@ -137,5 +155,11 @@ int main (int argc, char **argv) {
   close (fd);
   close (result_file);
   free (reading_tab);
+  while (begin->next != NULL) {
+    tmp = begin->next;
+    free (begin);
+    begin = tmp;
+  }
+  free (begin);
   return EXIT_SUCCESS;
 }
