@@ -14,7 +14,8 @@
 #include <stdint.h>
 
 /* Size of each block passed through Burrows Wheeler */
-#define BLOCK_SIZE 10
+/* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
+#define BLOCK_SIZE 250
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
 #define LETTER_SIZE 1
 /* Should be 2**LETTER_SIZE */
@@ -53,6 +54,18 @@ void print_array (uint8_t a) {
   for (i = 7; i >= 0; i--)
     (a & (1 << i)) == 0 ?printf("0"): printf("1");
   printf(" ");
+}
+
+void print_encoding (transform_t t) {
+  unsigned i, j;
+  for (i = 0; i < (t.depth + 1) / 8; i++) {
+    for (j = 8; j != 0; j--)
+      (t.encoding[i] & (1 << (j - 1))) == 0 ?printf("0"): printf("1");
+  }
+  if ((t.depth + 1)  % 8) {
+    for (j = t.depth % 8; j != 0; j--)
+      (t.encoding[i] & (1 << (j-1))) == 0 ?printf("0"): printf("1");
+  }
 }
 
 void print_sort_tab (uint8_t **tab, unsigned block_size) {
@@ -158,18 +171,15 @@ void burrows_wheeler (uint8_t *s, unsigned block_size) {
     strings[i] = shift (strings[i - 1], block_size);
   /* Sort the array by lexicographical order */
   merge_sort (strings, block_size, block_size);
-  unsigned index = 1;
+  unsigned index = 0;
   /* Search pos of the original string */
-  bool find_index = false;
   for (i = 0; i < block_size; i++) {
-    s[i + 1] = strings[i][block_size - 1];
-    if (!find_index && compare(s + 1, strings[i], block_size) == 0) {
+    if (compare(s + 1, strings[i], block_size) == 0) {
       index = i;
-      find_index = true;
+      break;
     }
   }
   s[0] = index;
-
   for (i = 0; i < block_size; i++) {
     free(strings[i]);
   }
@@ -208,16 +218,17 @@ void bw (char *file) {
       /* Fill the array before passing through Burrows Wheeler */
       read(fd, array + j + 1, 1);
     }
+    int write_size;
     if (i == nb_blocks - 1)
-      burrows_wheeler (array, size_last_block);
+      write_size = size_last_block;
     else
-      burrows_wheeler (array, BLOCK_SIZE);
-    write(result_file, array, BLOCK_SIZE + 1);
+      write_size = BLOCK_SIZE;
+    burrows_wheeler (array, write_size);
+    write(result_file, array, write_size + 1);
   }
   free (array);
   close (fd);
   close (result_file);
-
 }
 
 ////////////////////////////
@@ -245,7 +256,8 @@ void move_to_front () {
     reading_tab[i] = 0;
   while (read(fd, &original, sizeof(uint8_t)) > 0)
     reading_tab[original] = 1;
-  /* Create a new language only with the alphabet of file */
+  
+  /* Count each letter of the file */ 
   int count = 0;
   uint8_t first;
   for (i = 0; i < ALPHABET_SIZE; i++)
@@ -255,6 +267,7 @@ void move_to_front () {
       if (count == 1)
         first = (uint8_t)i;
     }
+  /* Making the dictionnary for MTF */
   list begin = malloc (sizeof (struct list));
   begin->data = first;
   begin->next = NULL;
@@ -267,15 +280,16 @@ void move_to_front () {
       tmp->next = next;
       tmp = next;
     }
-
+  /* DEBUG */
   tmp = begin;
-  printf("On a %d lettres dans le dictionnaire :(", count);
+  printf ("There is %d letters in the dictionnary :(", count);
   for (i = 0; i < count; i++) {
-    printf("%u,", tmp->data);
+    printf ("%u,", tmp->data);
     tmp = tmp->next;
   }
-  printf(")\n");
+  printf (")\n");
 
+  /* Write the transformed file */
   lseek (fd, 0, SEEK_SET);
   int result_file = open (RETURN_ENC, O_WRONLY | O_CREAT | O_TRUNC, 0666);
   if (result_file == -1) {
@@ -286,11 +300,13 @@ void move_to_front () {
   uint8_t new_val;
   while (read(fd, &original, sizeof(uint8_t)) > 0) {
     tmp = begin;
+    /* Find the index of the letter original in the dictionnary */
     for (i = 0; tmp->data != original; i++) {
       prev = tmp;
       tmp = tmp->next;
     }
     new_val = (uint8_t)i;
+    /* Move tmp to the front of the dictionnary */
     if (i != 0) {
       swap(begin, tmp, prev);
       begin = tmp;
@@ -300,16 +316,16 @@ void move_to_front () {
       exit (EXIT_FAILURE);
     }
   }
-  close (fd);
-  close (result_file);
-  free (reading_tab);
+  
   while (begin->next != NULL) {
     tmp = begin->next;
     free (begin);
     begin = tmp;
   }
   free (begin);
-
+  free (reading_tab);
+  close (fd);
+  close (result_file);
 }
 
 ////////////////////
@@ -340,7 +356,7 @@ node_t *create_node (node_t *n1, node_t *n2) {
 void get_min_amounts (node_t **cd, int *i1, int *i2) {
   int index_min = 0, index = 0, i;
   bool first = false;
-  // Find two valid indexes
+  /* Find two valid indexes */
   for (i = 0; i < ALPHABET_SIZE; i++)
     if (cd[i]) {
       if (first) {
@@ -352,13 +368,13 @@ void get_min_amounts (node_t **cd, int *i1, int *i2) {
         first = true;
       }
     }
-  // Sort them
+  /* Sort them */
   if (cd[index]->amount < cd[index_min]->amount) {
     int tmp = index_min;
     index_min = index;
     index = tmp;
   }
-  // Find, if possible, other index with lower amount
+  /* Find, if possible, other index with lower amount */
   for (i++; i < ALPHABET_SIZE; i++) {
     if (cd[i] && cd[i]->amount < cd[index]->amount) {
       if (cd[i]->amount < cd[index_min]->amount) {
@@ -417,6 +433,7 @@ uint8_t *deep_transform (uint8_t *encoding, unsigned depth, uint8_t last_bit) {
 void huffman_encoding (node_t *node, transform_t *array,
            unsigned depth, uint8_t *encoding) {
   if (node->left || node->right) {
+    /* Intern node */
     uint8_t *enc;
     if (node->left) {
       enc = deep_transform (encoding, depth, 0);
@@ -433,18 +450,6 @@ void huffman_encoding (node_t *node, transform_t *array,
     /* Leaf */
     array[node->data].depth = depth;
     array[node->data].encoding = deep_transform (encoding, depth, 2);
-  }
-}
-
-void print_encoding (transform_t t) {
-  unsigned i, j;
-  for (i = 0; i < (t.depth + 1) / 8; i++) {
-    for (j = 8; j != 0; j--)
-      (t.encoding[i] & (1 << (j - 1))) == 0 ?printf("0"): printf("1");
-  }
-  if ((t.depth + 1)  % 8) {
-    for (j = t.depth % 8; j != 0; j--)
-      (t.encoding[i] & (1 << (j-1))) == 0 ?printf("0"): printf("1");
   }
 }
 
@@ -472,7 +477,8 @@ void huffman () {
   for (i = 0; i < ALPHABET_SIZE; i++)
     tab[i] = NULL;
   unsigned nb_letters = 0;
-  for (i = 0; read(fd, &data, sizeof(uint8_t)) > 0 && i < DATA_READ; i++) {
+  /* Count the amount of each letter */
+  for (i = 0; read (fd, &data, sizeof(uint8_t)) > 0 && i < DATA_READ; i++) {
     if (tab[(int)data] == NULL) {
       node_t *new_data = malloc (sizeof (node_t));
       new_data->data = data;
@@ -485,7 +491,7 @@ void huffman () {
     else
       tab[(int)data]->amount++;
   }
-
+  /* DEBUG */
   unsigned k = 0;
   for (int j = 0; j < ALPHABET_SIZE; j++) {
     if (tab[j] != NULL) {
@@ -495,28 +501,29 @@ void huffman () {
       k += tab[j]->amount;
     }
   }
-  printf("\nOut of %u data analyzed", i);
-  printf("\n");
+  printf ("\nOut of %u data analyzed", i);
+  printf ("\n");
+
+  /* Creation of the Huffman Tree */
   node_t *root = huffman_tree (tab, nb_letters);
-  /* Free "tab" */
   transform_t *array = malloc (sizeof (transform_t ) * ALPHABET_SIZE);
   for (i = 0; i < ALPHABET_SIZE; i++)
     array[i].encoding = 0;
   uint8_t init_encoding = 0;
   huffman_encoding (root, array, 0, &init_encoding);
   /* Print encoding */
-  printf("\nEncoding: <word> to <encoding>\n");
+  printf ("\nEncoding: <word> to <encoding>\n");
   for (int j = 0; j < ALPHABET_SIZE; j++) {
     if (array[j].encoding) {
-      printf("%d : ", j);
+      printf ("%d : ", j);
       print_array (j);
       printf (" to ");
-      /* print par rapport au depth le truc par lequel on remplace */
       print_encoding (array[j]);
       printf("\n");
     }
   }
-  /* Now we read again the file and write the translate thanks to array */
+  
+  /* Write encoded letters into the final file */
   lseek (fd, 0, SEEK_SET);
   if (fd == -1) {
     fprintf (stderr, "Huffman: couldn't open file\n");
@@ -530,7 +537,7 @@ void huffman () {
   uint8_t data_read, data_to_write = 0;
   unsigned width = 0;
   for (i = 0; read(fd, &data_read, sizeof(uint8_t)) > 0; i++) {
-    /* Code of function print_encoding, with some modification */
+    /* Write the encoding */
     unsigned k, l;
     for (k = 0; k < (array[data_read].depth + 1) / 8; k++) {
       for (l = 8; l != 0; l--) {
@@ -549,6 +556,7 @@ void huffman () {
         }
       }
     }
+    /* Write the rest of the encoding, if there is */
     if ((array[data_read].depth + 1)  % 8) {
       for (l = array[data_read].depth % 8; l != 0; l--) {
         if (!(array[data_read].encoding[k] & (1 << (l - 1))))
