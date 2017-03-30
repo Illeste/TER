@@ -426,7 +426,10 @@ void huffman () {
   }
   uint8_t data;
   node_t **tab = malloc (sizeof (node_t *) * ALPHABET_SIZE);
-  unsigned i, nb_letters = 0;
+  unsigned i;
+  for (i = 0; i < ALPHABET_SIZE; i++)
+    tab[i] = NULL;
+  unsigned nb_letters = 0;
   for (i = 0; read(fd, &data, sizeof(uint8_t)) > 0 && i < DATA_READ; i++) {
     if (tab[(int)data] == NULL) {
       node_t *new_data = malloc (sizeof (node_t));
@@ -455,9 +458,10 @@ void huffman () {
   node_t *root = huffman_tree (tab, nb_letters);
   /* Free "tab" */
   transform_t *array = malloc (sizeof (transform_t ) * ALPHABET_SIZE);
+  for (i = 0; i < ALPHABET_SIZE; i++)
+    array[i].encoding = 0;
   uint8_t init_encoding = 0;
   huffman_encoding (root, array, 0, &init_encoding);
-
   /* Print encoding */
   printf("\nEncoding: <word> to <encoding>\n");
   for (int j = 0; j < ALPHABET_SIZE; j++) {
@@ -533,8 +537,12 @@ void huffman () {
     }
   }
 
+  for (i = 0; i < ALPHABET_SIZE; i++)
+    if (array[i].encoding)
+      free(array[i].encoding);
   free (array);
   free_tree (root);
+  free (tab);
   close (result_file);
   close (fd);
 }
