@@ -14,7 +14,7 @@
 #include <stdint.h>
 
 /* Size of each block passed through Burrows Wheeler */
-#define BLOCK_SIZE 30
+#define BLOCK_SIZE 10
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
 #define LETTER_SIZE 1
 /* Should be 2**LETTER_SIZE */
@@ -55,6 +55,17 @@ void print_array (uint8_t a) {
   printf(" ");
 }
 
+void print_sort_tab (uint8_t **tab, unsigned block_size) {
+  unsigned i, j;
+  for (i = 0; i < block_size; i++) {
+    for (j = 0; j < block_size; j++) {
+      printf("%c", tab[i][j]);
+//      print_array (tab[i][j]);
+    }
+    printf("\n");
+  }
+  printf("\n");
+}
 
 ////////////////////////////////////
 //
@@ -76,20 +87,51 @@ int compare (const void *a, const void *b, unsigned block_size) {
   return 0;
 }
 
-/* Select tri, we need to modify it, to do it faster */
-void sort(uint8_t **tab, unsigned block_size) {
-  unsigned i, j, min;
-  uint8_t *tmp;
-  for (i = 0; i < block_size - 1; i++) {
-    min = i;
-    for (j = i + 1; j < block_size; j++)
-      if (compare(tab[min], tab[j], block_size) > 0)
-        min = j;
-    if (min != i) {
-      tmp = tab[i];
-      tab[i] = tab[min];
-      tab[min] = tmp;
+void merge (uint8_t **tab, uint8_t **tab2,
+            unsigned tab_size1, unsigned tab_size2, unsigned block_size) {
+  uint8_t *tmp1[tab_size1];
+  uint8_t *tmp2[tab_size2];
+  unsigned i;
+  for (i = 0; i < tab_size1; i++) {
+    tmp1[i] = tab[i];
+  }
+  for (i = 0; i < tab_size2; i++) {
+    tmp2[i] = tab2[i];
+  }
+  unsigned i_tab2 = 0;
+  unsigned i_tab1 = 0;
+  unsigned c = 0;
+  while (i_tab1 < tab_size1 && i_tab2 < tab_size2) {
+    if (compare(tmp1[i_tab1], tmp2[i_tab2], block_size) > 0) {
+      tab[c] = tmp2[i_tab2];
+      c++;
+      i_tab2++;
     }
+    else {
+      tab[c] = tmp1[i_tab1];
+      c++;
+      i_tab1++;
+    }
+  }
+  if (i_tab1 == tab_size1)
+    for (i = i_tab2; i < tab_size2; i++) {
+      tab[c] = tmp2[i];
+      c++;
+    }
+  else
+    for (i = i_tab1; i < tab_size1; i++) {
+      tab[c] = tmp1[i];
+      c++;
+    }
+}
+
+void merge_sort (uint8_t **tab, unsigned tab_size, unsigned block_size) {
+  if (tab_size > 1){
+    unsigned tab_size1 = tab_size / 2;
+    unsigned tab_size2 = tab_size - tab_size1;
+    merge_sort (tab, tab_size1, block_size);
+    merge_sort (tab + tab_size1, tab_size2, block_size);
+    merge (tab, tab + tab_size1, tab_size1, tab_size2, block_size);
   }
 }
 
@@ -115,7 +157,7 @@ void burrows_wheeler (uint8_t *s, unsigned block_size) {
   for (i = 1; i < block_size; i++)
     strings[i] = shift (strings[i - 1], block_size);
   /* Sort the array by lexicographical order */
-  sort(strings, block_size);
+  merge_sort (strings, block_size, block_size);
   unsigned index = 1;
   /* Search pos of the original string */
   bool find_index = false;
@@ -175,7 +217,7 @@ void bw (char *file) {
   free (array);
   close (fd);
   close (result_file);
-  
+
 }
 
 ////////////////////////////
@@ -267,7 +309,7 @@ void move_to_front () {
     begin = tmp;
   }
   free (begin);
-  
+
 }
 
 ////////////////////
@@ -443,7 +485,7 @@ void huffman () {
     else
       tab[(int)data]->amount++;
   }
-  
+
   unsigned k = 0;
   for (int j = 0; j < ALPHABET_SIZE; j++) {
     if (tab[j] != NULL) {
@@ -561,6 +603,6 @@ int main (int argc, char **argv) {
   bw (argv[1]);
   move_to_front ();
   huffman ();
-  
+
   return EXIT_SUCCESS;
 }
