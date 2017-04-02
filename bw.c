@@ -15,9 +15,12 @@
 
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
-#define BLOCK_SIZE 250
+#define BLOCK_SIZE 10
+/* Size of data scanned (2 bytes because we use uint16_t) */
+#define DATA_SIZE 2
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
-#define LETTER_SIZE 1
+#define LETTER_SIZE 16
+#define BYTES_SIZE 8
 /* Should be 2**LETTER_SIZE */
 #define ALPHABET_SIZE 256
 /* Amount of data scanned */
@@ -49,9 +52,9 @@ struct list {
 typedef struct list *list;
 
 
-void print_array (uint8_t a) {
+void print_array (uint16_t a) {
   int i;
-  for (i = 7; i >= 0; i--)
+  for (i = LETTER_SIZE - 1; i >= 0; i--)
     (a & (1 << i)) == 0 ?printf("0"): printf("1");
   printf(" ");
 }
@@ -100,10 +103,10 @@ int compare (const void *a, const void *b, unsigned block_size) {
   return 0;
 }
 
-void merge (uint8_t **tab, uint8_t **tab2,
+void merge (uint16_t **tab, uint16_t **tab2,
             unsigned tab_size1, unsigned tab_size2, unsigned block_size) {
-  uint8_t *tmp1[tab_size1];
-  uint8_t *tmp2[tab_size2];
+  uint16_t *tmp1[tab_size1];
+  uint16_t *tmp2[tab_size2];
   unsigned i;
   for (i = 0; i < tab_size1; i++) {
     tmp1[i] = tab[i];
@@ -138,7 +141,7 @@ void merge (uint8_t **tab, uint8_t **tab2,
     }
 }
 
-void merge_sort (uint8_t **tab, unsigned tab_size, unsigned block_size) {
+void merge_sort (uint16_t **tab, unsigned tab_size, unsigned block_size) {
   if (tab_size > 1){
     unsigned tab_size1 = tab_size / 2;
     unsigned tab_size2 = tab_size - tab_size1;
@@ -148,8 +151,8 @@ void merge_sort (uint8_t **tab, unsigned tab_size, unsigned block_size) {
   }
 }
 
-uint8_t *shift (uint8_t *s, unsigned block_size) {
-  uint8_t *shifted_s = malloc (block_size * sizeof(uint8_t));
+uint16_t *shift (uint16_t *s, unsigned block_size) {
+  uint16_t *shifted_s = malloc (block_size * sizeof(uint16_t));
   unsigned i;
   /* For all uint8_t without the last */
   for (i = 0; i < block_size - 1; i++) {
@@ -160,10 +163,10 @@ uint8_t *shift (uint8_t *s, unsigned block_size) {
   return shifted_s;
 }
 
-void burrows_wheeler (uint8_t *s, unsigned block_size) {
-  uint8_t **strings = malloc (sizeof (uint8_t *) * (block_size));
+void burrows_wheeler (uint16_t *s, unsigned block_size) {
+  uint8_t **strings = malloc (sizeof (uint16_t *) * (block_size));
   unsigned i;
-  strings[0] = malloc (sizeof (uint8_t) * block_size);
+  strings[0] = malloc (sizeof (uint16_t) * block_size);
   for (i = 0; i < block_size; i++) {
     strings[0][i] = s[i + 1];
   }
@@ -184,7 +187,15 @@ void burrows_wheeler (uint8_t *s, unsigned block_size) {
     free(strings[i]);
   }
   free (strings);
+}
 
+void cpy_data (uint16_t *array, uint16_t data) {
+  int i;
+  for (i = LETTER_SIZE - 1; i >= 0; i--)
+    if ((data & (1 << i)) == 0)
+      *array = *array << 1;
+    else
+      *array = (*array << 1) + 1;
 }
 
 void bw (char *file) {
@@ -198,9 +209,11 @@ void bw (char *file) {
   lseek (fd, 0, SEEK_SET);
 
   /* Should contain the index then the word */
-  uint8_t *array = malloc (sizeof (uint8_t) * (BLOCK_SIZE + 1));
-  unsigned nb_blocks = size / (LETTER_SIZE * BLOCK_SIZE);
-  unsigned size_last_block = size - (nb_blocks * LETTER_SIZE * BLOCK_SIZE);
+  uint16_t *array = malloc (sizeof (uint16_t) * (BLOCK_SIZE + 1));
+  unsigned nb_blocks = size * BYTES_SIZE / (LETTER_SIZE * BLOCK_SIZE);
+  unsigned size_last_block = (size * BYTES_SIZE -
+                             (nb_blocks * LETTER_SIZE * BLOCK_SIZE))
+                             / BYTES_SIZE;
   if (size_last_block != 0)
     nb_blocks++;
 
@@ -210,21 +223,44 @@ void bw (char *file) {
     fprintf (stderr, "BW: couldn't open to return result\n");
     exit (EXIT_FAILURE);
   }
-  unsigned i, j;
+  unsigned i, j, data_count = 0;
+  uint16_t data_read;
   /* WARNING: LETTER_SIZE <= 8, or else not handled now */
   for (i = 0; i < nb_blocks; i++) {
     for (j = 0; j < BLOCK_SIZE; j++) {
-      array[j + 1] = 0;
+      data_read = 0;
       /* Fill the array before passing through Burrows Wheeler */
-      read(fd, array + j + 1, 1);
+      read (fd, &data_read, DATA_SIZE);
+      data_count += DATA_SIZE * BYTES_SIZE;
+      /* Store on array, all data with sizeof LETTER_SIZE */
+      while (data_count >= LETTER_SIZE && j < BLOCK_SIZE) {
+        array[j + 1] = 0;
+        cpy_data (array + j + 1, data_read);
+        j++;
+        data_count -= LETTER_SIZE;
+        data_read = data_read >> LETTER_SIZE;
+      }
     }
-    int write_size;
-    if (i == nb_blocks - 1)
-      write_size = size_last_block;
+    int block_size;
+    if (i == nb_blocks - 1 && size_last_block != 0)
+      block_size = size_last_block;
     else
-      write_size = BLOCK_SIZE;
-    burrows_wheeler (array, write_size);
-    write(result_file, array, write_size + 1);
+      block_size = BLOCK_SIZE;
+
+/*    DEBUG
+    printf("Array pour block = %d = \n", block_size);
+    for (int k = 0; k < block_size; k++) {
+      print_array(array[k]);
+      printf("\n");
+    }*/
+    burrows_wheeler (array, block_size);
+/*    DEBUG
+    printf("Array pour block = %d = \n", block_size);
+    for (int k = 0; k < block_size; k++) {
+      print_array(array[k]);
+      printf("\n");
+    }*/
+    write (result_file, array, (block_size + 1) * sizeof (uint16_t));
   }
   free (array);
   close (fd);
@@ -256,8 +292,8 @@ void move_to_front () {
     reading_tab[i] = 0;
   while (read(fd, &original, sizeof(uint8_t)) > 0)
     reading_tab[original] = 1;
-  
-  /* Count each letter of the file */ 
+
+  /* Count each letter of the file */
   int count = 0;
   uint8_t first;
   for (i = 0; i < ALPHABET_SIZE; i++)
@@ -316,7 +352,7 @@ void move_to_front () {
       exit (EXIT_FAILURE);
     }
   }
-  
+
   while (begin->next != NULL) {
     tmp = begin->next;
     free (begin);
@@ -522,7 +558,7 @@ void huffman () {
       printf("\n");
     }
   }
-  
+
   /* Write encoded letters into the final file */
   lseek (fd, 0, SEEK_SET);
   if (fd == -1) {
