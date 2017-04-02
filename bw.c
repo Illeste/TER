@@ -19,7 +19,7 @@
 /* Size of data scanned (2 bytes because we use uint16_t) */
 #define DATA_SIZE 2
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
-#define LETTER_SIZE 16
+#define LETTER_SIZE 8
 #define BYTES_SIZE 8
 /* Should be 2**LETTER_SIZE */
 #define ALPHABET_SIZE 256
@@ -164,7 +164,7 @@ uint16_t *shift (uint16_t *s, unsigned block_size) {
 }
 
 void burrows_wheeler (uint16_t *s, unsigned block_size) {
-  uint8_t **strings = malloc (sizeof (uint16_t *) * (block_size));
+  uint16_t **strings = malloc (sizeof (uint16_t *) * (block_size));
   unsigned i;
   strings[0] = malloc (sizeof (uint16_t) * block_size);
   for (i = 0; i < block_size; i++) {
@@ -184,6 +184,7 @@ void burrows_wheeler (uint16_t *s, unsigned block_size) {
   }
   s[0] = index;
   for (i = 0; i < block_size; i++) {
+    s[i + 1] = strings[i][block_size - 1];
     free(strings[i]);
   }
   free (strings);
@@ -247,18 +248,18 @@ void bw (char *file) {
     else
       block_size = BLOCK_SIZE;
 
-/*    DEBUG
+/*   // DEBUG
     printf("Array pour block = %d = \n", block_size);
     for (int k = 0; k < block_size; k++) {
-      print_array(array[k]);
-      printf("\n");
+      printf("%u", array[k]);
+      //print_array(array[k]);
     }*/
     burrows_wheeler (array, block_size);
-/*    DEBUG
+/*   // DEBUG
     printf("Array pour block = %d = \n", block_size);
     for (int k = 0; k < block_size; k++) {
-      print_array(array[k]);
-      printf("\n");
+      printf("%u", array[k]);
+      //print_array(array[k]);
     }*/
     write (result_file, array, (block_size + 1) * sizeof (uint16_t));
   }
