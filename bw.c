@@ -19,7 +19,7 @@
 /* Size of data scanned (2 bytes because we use uint16_t) */
 #define DATA_SIZE 2
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
-#define LETTER_SIZE 8
+#define LETTER_SIZE 16
 #define BYTES_SIZE 8
 /* Should be 2**LETTER_SIZE */
 #define ALPHABET_SIZE 256
@@ -332,6 +332,17 @@ void move_to_front () {
   if (result_file == -1) {
     fprintf (stderr, "Encoding: couldn't open to return result\n");
     exit (EXIT_FAILURE);
+  }
+
+  /* Print dictionnary on file */
+  tmp = begin;
+  while (tmp != NULL) {
+    write (result_file, tmp->data, sizeof (uint8_t));
+    if (tmp->next != NULL)
+      write (result_file, ":", sizeof (uint8_t));
+    else
+      write (result_file, ";", sizeof (uint8_t));
+    tmp = tmp->next;
   }
   list prev;
   uint8_t new_val;
