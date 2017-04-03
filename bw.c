@@ -9,17 +9,18 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <math.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdint.h>
 
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
-#define BLOCK_SIZE 8000
+#define BLOCK_SIZE 5000
 /* Size of data scanned (2 bytes because we use uint16_t) */
 #define DATA_SIZE 2
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
-#define LETTER_SIZE 16
+#define LETTER_SIZE 8
 #define BYTES_SIZE 8
 /* Should be 2**LETTER_SIZE */
 #define ALPHABET_SIZE 256
@@ -229,6 +230,11 @@ void bw (char *file) {
   }
   unsigned i, j, data_count = 0;
   uint16_t data_read;
+
+  for (i = 0; i < BLOCK_SIZE + 1; i++)
+    array[i] = 0;
+
+  
   /* WARNING: LETTER_SIZE <= 8, or else not handled now */
   for (i = 0; i < nb_blocks; i++) {
     for (j = 0; j < BLOCK_SIZE; j++) {
@@ -484,7 +490,8 @@ node_t *huffman_tree (node_t **cd, unsigned amount_left) {
 uint8_t *deep_transform (uint8_t *encoding, unsigned depth, uint8_t last_bit) {
   /* 8 is the size of uint8_t in bits */
   unsigned index = depth / 8;
-  uint8_t *ret = malloc (sizeof (uint8_t) * (index + 1));
+  uint8_t *ret;
+  ret = malloc (sizeof (uint8_t) * (index + 1));
   unsigned i;
   for (i = 0; i < index + 1; i++) {
     ret[i] = encoding[i];
