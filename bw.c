@@ -16,11 +16,11 @@
 
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
-#define BLOCK_SIZE 5000
+#define BLOCK_SIZE 20
 /* Size of data scanned (2 bytes because we use uint16_t) */
 #define DATA_SIZE 2
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
-#define LETTER_SIZE 8
+#define LETTER_SIZE 16
 #define BYTES_SIZE 8
 /* Should be 2**LETTER_SIZE */
 #define ALPHABET_SIZE 256
@@ -32,6 +32,7 @@
 #define RETURN_ENC          "result_encode"
 #define DICTIONNARY_ENC     ".dico_enc"
 #define RETURN_HUF          "result_huffman"
+#define ENCODE_HUF          ".code_huff"
 
 
 /* Huffman Structs */
@@ -228,13 +229,19 @@ void bw (char *file) {
     fprintf (stderr, "BW: couldn't open to return result\n");
     exit (EXIT_FAILURE);
   }
+  /* Print all index into a file */
+  int index_file = open (INDEX_BW, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+  if (index_file == -1) {
+    fprintf (stderr, "BW: couldn't open to return all index\n");
+    exit (EXIT_FAILURE);
+  }
   unsigned i, j, data_count = 0;
   uint16_t data_read;
 
   for (i = 0; i < BLOCK_SIZE + 1; i++)
     array[i] = 0;
 
-  
+
   /* WARNING: LETTER_SIZE <= 8, or else not handled now */
   for (i = 0; i < nb_blocks; i++) {
     for (j = 0; j < BLOCK_SIZE; j++) {
@@ -283,10 +290,12 @@ void bw (char *file) {
       byte_write = 1;
       break;
     }
-    write (result_file, array, (block_size + 1) * byte_write);
+    write (index_file, array, sizeof (uint16_t));
+    write (result_file, array + 1, (block_size) * byte_write);
   }
   free (array);
   close (fd);
+  close (index_file);
   close (result_file);
 }
 
@@ -365,6 +374,7 @@ void move_to_front () {
       write (dictionnary_file, ";", sizeof (uint8_t));
     tmp = tmp->next;
   }
+  close (dictionnary_file);
 
   /* Write the transformed file */
   lseek (fd, 0, SEEK_SET);
@@ -486,12 +496,10 @@ node_t *huffman_tree (node_t **cd, unsigned amount_left) {
   return root;
 }
 
-
 uint8_t *deep_transform (uint8_t *encoding, unsigned depth, uint8_t last_bit) {
   /* 8 is the size of uint8_t in bits */
   unsigned index = depth / 8;
-  uint8_t *ret;
-  ret = malloc (sizeof (uint8_t) * (index + 1));
+  uint8_t *ret = malloc (sizeof (uint8_t) * (index + 1));
   unsigned i;
   for (i = 0; i < index + 1; i++) {
     ret[i] = encoding[i];
@@ -541,6 +549,55 @@ void free_tree (node_t *node) {
     }
     free (node);
   }
+}
+
+/* nbaw = nb_bits_already_wrote */
+int cpy_data2 (uint16_t *array, uint16_t data, int size_of_data, int nb_bits,
+              int nbaw) {
+  int i;
+  int cpy_bits = 0;
+  for (i = size_of_data - nbaw - 1;
+      i >= 0 && (nb_bits + cpy_bits) != BYTES_SIZE * DATA_SIZE; i--) {
+    if ((data & (1 << i)) == 0)
+      *array = *array << 1;
+    else
+      *array = (*array << 1) + 1;
+    cpy_bits++;
+  }
+  return (cpy_bits);
+}
+
+/*
+nb_bits = nb de bits dans le buffer à écrire "to_write"
+nb_cpy = nb de bits copier dans le buffer. (au cas où il ne copierai pas tout)
+nbaw = nb_bits_already_wrote = nb de bits qui a déjà été écrit
+(ce dernier peut être non utile en fonction de la taille de l'entier à copier,
+c'est à dire si la taille ne dépasse pas sizeof (uint16_t))
+*/
+int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t to_cpy, int size,
+                      int nb_bits_write) {
+  printf("\n");
+  print_array(to_cpy);
+  printf("\n");
+  uint16_t *to_write = write_buf;
+  int nb_bits = nb_bits_write;
+  int nb_cpy = 0;
+  /* nbaw = nb_bits_already_wrote */
+  int nbaw = 0;
+  nb_cpy = cpy_data2 (to_write, to_cpy, size,
+                      nb_bits, nbaw);
+//  printf("nb_bits = %d, nbaw = %d , nb_cpy = %d, size = %d\n", nb_bits, nbaw, nb_cpy, size);
+  while ((nbaw + nb_cpy) != size) {
+    print_array(*to_write);
+    printf(", ");
+    write (file, *to_write, sizeof (uint16_t));
+    nb_bits = 0;
+    nbaw += nb_cpy;
+    nb_cpy = cpy_data2 (to_write, to_cpy, size,
+                        nb_bits, nbaw);
+  }
+  nb_bits += nb_cpy;
+  return nb_bits;
 }
 
 void huffman () {
@@ -600,6 +657,51 @@ void huffman () {
       printf("\n");
     }
   }
+
+  /* Print the code into a file */
+  int huff_code_file = open (ENCODE_HUF,
+                              O_WRONLY | O_CREAT | O_TRUNC, 0666);
+  if (huff_code_file == -1) {
+    fprintf (stderr, "Huffman: couldn't open to return the encode\n");
+    exit (EXIT_FAILURE);
+  }
+  uint16_t to_write = 0;
+  int nb_bits = 0;
+  uint8_t *encoding;
+  for (uint16_t j = 0; j < ALPHABET_SIZE; j++) {
+    encoding = array[j].encoding;
+    if (encoding) {
+      printf("\n");
+      printf("ajouter : ");
+      print_array(j);
+      printf(", size = %u, encoding = ", array[j].depth);
+      print_encoding (array[j]);
+      printf("\n");
+      /* Print the word */
+      nb_bits = cpy_data_huffman (huff_code_file, &to_write, j,
+                                  sizeof (uint16_t) * BYTES_SIZE, nb_bits);
+      /* Print the size of encoding */
+      nb_bits = cpy_data_huffman (huff_code_file, &to_write, array[j].depth,
+                                  sizeof (uint8_t) * BYTES_SIZE, nb_bits);
+      /* Print the encoding */
+      int max_size = sizeof (uint16_t) * BYTES_SIZE;
+      int nb_bits_encoding = array[j].depth;
+      while (nb_bits_encoding != 0) {
+        if (nb_bits_encoding > max_size) {
+          nb_bits = cpy_data_huffman (huff_code_file, &to_write, &encoding,
+                                      max_size, nb_bits);
+          nb_bits_encoding -= max_size;
+          encoding++;
+        }
+        else {
+          nb_bits = cpy_data_huffman (huff_code_file, &to_write, &encoding,
+                                      nb_bits_encoding, nb_bits);
+          nb_bits_encoding = 0;
+        }
+      }
+    }
+  }
+  close (huff_code_file);
 
   /* Write encoded letters into the final file */
   lseek (fd, 0, SEEK_SET);
