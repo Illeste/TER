@@ -1,8 +1,5 @@
 # Variables
-BW= bw
-ENC= encoding
-HUF= huffman
-EXE= $(BW) $(ENC) $(HUF)
+EXE= bw
 
 # Usual compilation flags
 CFLAGS= -std=c99 -Wall -Wextra -g
@@ -13,24 +10,6 @@ CPPFLAGS= -I../include
 
 # Rules and targets
 all: $(EXE)
-
-$(BW): $(BW).o
-	$(CC) $(CFLAGS) -o $@ $^
-
-$(BW).o: $(BW).c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
-
-$(ENC): $(ENC).o
-	$(CC) $(CFLAGS) -o $@ $^
-
-$(ENC).o: $(ENC).c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
-
-$(HUF): $(HUF).o
-	$(CC) $(CFLAGS) -o $@ $^
-
-$(HUF).o: $(HUF).c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
 
 clean:
 	@rm -f *.o $(EXE)
