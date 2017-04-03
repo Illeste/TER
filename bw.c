@@ -26,9 +26,11 @@
 /* Amount of data scanned */
 #define DATA_READ 100000
 /* Name of in betwwen files for storage */
-#define RETURN_BW  "result_bw"
-#define RETURN_ENC "result_encode"
-#define RETURN_HUF "result_huffman"
+#define RETURN_BW           "result_bw"
+#define INDEX_BW            ".index_bw"
+#define RETURN_ENC          "result_encode"
+#define DICTIONNARY_ENC     ".dico_enc"
+#define RETURN_HUF          "result_huffman"
 
 
 /* Huffman Structs */
@@ -327,22 +329,29 @@ void move_to_front () {
   printf (")\n");
 
   /* Write the transformed file */
+  int dictionnary_file = open (DICTIONNARY_ENC,
+                              O_WRONLY | O_CREAT | O_TRUNC, 0666);
+  if (dictionnary_file == -1) {
+    fprintf (stderr, "Encoding: couldn't open to return the dictionnary\n");
+    exit (EXIT_FAILURE);
+  }
+  /* Print dictionnary on file */
+  tmp = begin;
+  while (tmp != NULL) {
+    write (dictionnary_file, tmp->data, sizeof (uint8_t));
+    if (tmp->next != NULL)
+      write (dictionnary_file, ":", sizeof (uint8_t));
+    else
+      write (dictionnary_file, ";", sizeof (uint8_t));
+    tmp = tmp->next;
+  }
+
+  /* Write the transformed file */
   lseek (fd, 0, SEEK_SET);
   int result_file = open (RETURN_ENC, O_WRONLY | O_CREAT | O_TRUNC, 0666);
   if (result_file == -1) {
     fprintf (stderr, "Encoding: couldn't open to return result\n");
     exit (EXIT_FAILURE);
-  }
-
-  /* Print dictionnary on file */
-  tmp = begin;
-  while (tmp != NULL) {
-    write (result_file, tmp->data, sizeof (uint8_t));
-    if (tmp->next != NULL)
-      write (result_file, ":", sizeof (uint8_t));
-    else
-      write (result_file, ";", sizeof (uint8_t));
-    tmp = tmp->next;
   }
   list prev;
   uint8_t new_val;
