@@ -15,11 +15,11 @@
 
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
-#define BLOCK_SIZE 10
+#define BLOCK_SIZE 8000
 /* Size of data scanned (2 bytes because we use uint16_t) */
 #define DATA_SIZE 2
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
-#define LETTER_SIZE 8
+#define LETTER_SIZE 16
 #define BYTES_SIZE 8
 /* Should be 2**LETTER_SIZE */
 #define ALPHABET_SIZE 256
@@ -215,6 +215,7 @@ void bw (char *file) {
   unsigned size_last_block = (size * BYTES_SIZE -
                              (nb_blocks * LETTER_SIZE * BLOCK_SIZE))
                              / BYTES_SIZE;
+  printf ("TAILLE LB: %u\n", size_last_block);
   if (size_last_block != 0)
     nb_blocks++;
 
@@ -261,7 +262,20 @@ void bw (char *file) {
       printf("%u", array[k]);
       //print_array(array[k]);
     }*/
-    write (result_file, array, (block_size + 1) * sizeof (uint16_t));
+    int byte_write;
+    switch (LETTER_SIZE) {
+
+    case 8:
+      byte_write = 1;
+      break;
+    case 16:
+      byte_write = 2;
+      break;
+    default:
+      byte_write = 1;
+      break;
+    }
+    write (result_file, array, (block_size + 1) * byte_write);
   }
   free (array);
   close (fd);
