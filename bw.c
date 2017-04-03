@@ -347,6 +347,17 @@ void move_to_front () {
     fprintf (stderr, "Encoding: couldn't open to return result\n");
     exit (EXIT_FAILURE);
   }
+
+  /* Print dictionnary on file */
+  tmp = begin;
+  while (tmp != NULL) {
+    write (result_file, tmp->data, sizeof (uint8_t));
+    if (tmp->next != NULL)
+      write (result_file, ":", sizeof (uint8_t));
+    else
+      write (result_file, ";", sizeof (uint8_t));
+    tmp = tmp->next;
+  }
   list prev;
   uint8_t new_val;
   while (read(fd, &original, sizeof(uint8_t)) > 0) {
