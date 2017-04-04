@@ -576,9 +576,6 @@ c'est à dire si la taille ne dépasse pas sizeof (uint16_t))
 */
 int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t to_cpy, int size,
                       int nb_bits_write) {
-  printf("\n");
-  print_array(to_cpy);
-  printf("\n");
   uint16_t *to_write = write_buf;
   int nb_bits = nb_bits_write;
   int nb_cpy = 0;
@@ -586,11 +583,11 @@ int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t to_cpy, int size,
   int nbaw = 0;
   nb_cpy = cpy_data2 (to_write, to_cpy, size,
                       nb_bits, nbaw);
-//  printf("nb_bits = %d, nbaw = %d , nb_cpy = %d, size = %d\n", nb_bits, nbaw, nb_cpy, size);
   while ((nbaw + nb_cpy) != size) {
-    print_array(*to_write);
-    printf(", ");
-    write (file, *to_write, sizeof (uint16_t));
+    if (write (file, to_write, sizeof (uint16_t)) == -1) {
+      fprintf (stderr, "Huffman: writing on file .code_huff failed\n");
+      exit (EXIT_FAILURE);
+    }
     nb_bits = 0;
     nbaw += nb_cpy;
     nb_cpy = cpy_data2 (to_write, to_cpy, size,
@@ -671,12 +668,6 @@ void huffman () {
   for (uint16_t j = 0; j < ALPHABET_SIZE; j++) {
     encoding = array[j].encoding;
     if (encoding) {
-      printf("\n");
-      printf("ajouter : ");
-      print_array(j);
-      printf(", size = %u, encoding = ", array[j].depth);
-      print_encoding (array[j]);
-      printf("\n");
       /* Print the word */
       nb_bits = cpy_data_huffman (huff_code_file, &to_write, j,
                                   sizeof (uint16_t) * BYTES_SIZE, nb_bits);
@@ -688,13 +679,13 @@ void huffman () {
       int nb_bits_encoding = array[j].depth;
       while (nb_bits_encoding != 0) {
         if (nb_bits_encoding > max_size) {
-          nb_bits = cpy_data_huffman (huff_code_file, &to_write, &encoding,
+          nb_bits = cpy_data_huffman (huff_code_file, &to_write, *encoding,
                                       max_size, nb_bits);
           nb_bits_encoding -= max_size;
           encoding++;
         }
         else {
-          nb_bits = cpy_data_huffman (huff_code_file, &to_write, &encoding,
+          nb_bits = cpy_data_huffman (huff_code_file, &to_write, *encoding,
                                       nb_bits_encoding, nb_bits);
           nb_bits_encoding = 0;
         }
