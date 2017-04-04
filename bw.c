@@ -17,15 +17,13 @@
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
 #define BLOCK_SIZE 20
-/* Size of data scanned (2 bytes because we use uint16_t) */
-#define DATA_SIZE 2
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
-#define LETTER_SIZE 16
+#define LETTER_SIZE 8
 #define BYTES_SIZE 8
 /* Should be 2**LETTER_SIZE */
 #define ALPHABET_SIZE 256
-/* Amount of data scanned */
-#define DATA_READ 100000
+/* Amount of data scanned in Huffman */
+#define DATA_READ 50000
 /* Name of in betwwen files for storage */
 #define RETURN_BW           "result_bw"
 #define INDEX_BW            ".index_bw"
@@ -34,6 +32,9 @@
 #define RETURN_HUF          "result_huffman"
 #define ENCODE_HUF          ".code_huff"
 
+
+/* Indicating if we have to read byte per byte or 2 by 2 */
+int byte_write = (LETTER_SIZE == 8) ? 1 : 2;
 
 /* Huffman Structs */
 typedef struct node {
@@ -219,36 +220,35 @@ void bw (char *file) {
   unsigned size_last_block = (size * BYTES_SIZE -
                              (nb_blocks * LETTER_SIZE * BLOCK_SIZE))
                              / BYTES_SIZE;
-  printf ("TAILLE LB: %u\n", size_last_block);
   if (size_last_block != 0)
     nb_blocks++;
 
-  /* Print the result into a file */
-  int result_file = open (RETURN_BW, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  if (result_file == -1) {
-    fprintf (stderr, "BW: couldn't open to return result\n");
+  /* Print the result into a file and index to another */
+  int result_file = open (RETURN_BW, O_WRONLY | O_CREAT | O_TRUNC, 0666),
+    index_file = open (INDEX_BW, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+  if (result_file == -1 || index_file == -1) {
+    fprintf (stderr, "BW: couldn't open a file\n");
     exit (EXIT_FAILURE);
   }
-  /* Print all index into a file */
-  int index_file = open (INDEX_BW, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  if (index_file == -1) {
-    fprintf (stderr, "BW: couldn't open to return all index\n");
-    exit (EXIT_FAILURE);
-  }
+
+  /* Write in header of the index file the size of read and the block
+    size used in bw */
+  array[0] = byte_write, array[1] = BLOCK_SIZE;
+  write (index_file, array, 1);
+  write (index_file, array + 1, 2);
   unsigned i, j, data_count = 0;
   uint16_t data_read;
-
   for (i = 0; i < BLOCK_SIZE + 1; i++)
     array[i] = 0;
 
-
-  /* WARNING: LETTER_SIZE <= 8, or else not handled now */
+  /* WARNING: LETTER_SIZE == 8 or 16, or else not handled now */
   for (i = 0; i < nb_blocks; i++) {
     for (j = 0; j < BLOCK_SIZE; j++) {
       data_read = 0;
       /* Fill the array before passing through Burrows Wheeler */
-      read (fd, &data_read, DATA_SIZE);
-      data_count += DATA_SIZE * BYTES_SIZE;
+      read (fd, &data_read, 1);
+      
+      data_count += byte_write * BYTES_SIZE;
       /* Store on array, all data with sizeof LETTER_SIZE */
       while (data_count >= LETTER_SIZE && j < BLOCK_SIZE) {
         array[j + 1] = 0;
@@ -257,6 +257,7 @@ void bw (char *file) {
         data_count -= LETTER_SIZE;
         data_read = data_read >> LETTER_SIZE;
       }
+      j--;
     }
     int block_size;
     if (i == nb_blocks - 1 && size_last_block != 0)
@@ -264,34 +265,25 @@ void bw (char *file) {
     else
       block_size = BLOCK_SIZE;
 
-/*   // DEBUG
-    printf("Array pour block = %d = \n", block_size);
-    for (int k = 0; k < block_size; k++) {
-      printf("%u", array[k]);
-      //print_array(array[k]);
-    }*/
+   /* // DEBUG */
+   /*  printf("Array pour block = %d = \n", block_size); */
+   /*  for (int k = 0; k < block_size + 1; k++) { */
+   /*    printf("%u ", array[k]); */
+   /*    print_array(array[k]); */
+   /*    printf("\n"); */
+   /*  } */
     burrows_wheeler (array, block_size);
-/*   // DEBUG
-    printf("Array pour block = %d = \n", block_size);
-    for (int k = 0; k < block_size; k++) {
-      printf("%u", array[k]);
-      //print_array(array[k]);
-    }*/
-    int byte_write;
-    switch (LETTER_SIZE) {
-
-    case 8:
-      byte_write = 1;
-      break;
-    case 16:
-      byte_write = 2;
-      break;
-    default:
-      byte_write = 1;
-      break;
-    }
-    write (index_file, array, sizeof (uint16_t));
-    write (result_file, array + 1, (block_size) * byte_write);
+   /* // DEBUG */
+   /*  printf("Array pour block = %d = \n", block_size); */
+   /*  for (int k = 0; k < block_size + 1; k++) { */
+   /*    printf("%u ", array[k]); */
+   /*    print_array(array[k]); */
+   /*    printf("\n"); */
+   /*  } */
+    write (index_file, array, byte_write);
+    /* Write into result file */
+    for (int k = 1; k < block_size + 1; k++)
+      write (result_file, array + k, byte_write);
   }
   free (array);
   close (fd);
@@ -350,7 +342,7 @@ void move_to_front () {
     }
   /* DEBUG */
   tmp = begin;
-  printf ("There is %d letters in the dictionnary :(", count);
+  printf ("There are %d letters in the dictionnary :(", count);
   for (i = 0; i < count; i++) {
     printf ("%u,", tmp->data);
     tmp = tmp->next;
@@ -499,7 +491,7 @@ node_t *huffman_tree (node_t **cd, unsigned amount_left) {
 uint8_t *deep_transform (uint8_t *encoding, unsigned depth, uint8_t last_bit) {
   /* 8 is the size of uint8_t in bits */
   unsigned index = depth / 8;
-  uint8_t *ret = malloc (sizeof (uint8_t) * (index + 1));
+  uint8_t *ret = malloc (sizeof (uint8_t) * (index + 2));
   unsigned i;
   for (i = 0; i < index + 1; i++) {
     ret[i] = encoding[i];
@@ -557,7 +549,7 @@ int cpy_data2 (uint16_t *array, uint16_t data, int size_of_data, int nb_bits,
   int i;
   int cpy_bits = 0;
   for (i = size_of_data - nbaw - 1;
-      i >= 0 && (nb_bits + cpy_bits) != BYTES_SIZE * DATA_SIZE; i--) {
+      i >= 0 && (nb_bits + cpy_bits) != BYTES_SIZE * byte_write; i--) {
     if ((data & (1 << i)) == 0)
       *array = *array << 1;
     else
