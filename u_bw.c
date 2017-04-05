@@ -91,8 +91,8 @@ void print_sort_tab (uint16_t **tab, unsigned block_size) {
 
 /* DECOMPRESSION BW */
 int compare (const void *a, const void *b, unsigned block_size) {
-  uint8_t *_a = (uint8_t *) a;
-  uint8_t *_b = (uint8_t *) b;
+  uint16_t *_a = (uint16_t *) a;
+  uint16_t *_b = (uint16_t *) b;
   unsigned i;
 
   /* Little endian storage */
@@ -161,7 +161,7 @@ void reverse_bw (uint16_t *array, uint16_t index, int n) {
 	strings[i][j] = 0;
     }
     /* Take the string, add a letter from array and then sort them */
-    for (i = n - 1; i != 0 ; i--) {
+    for (i = n - 1; i >= 0 ; i--) {
       for (j = 0; j < n; j++)
 	strings[j][i] = array[j];
       // DEBUG
@@ -248,7 +248,7 @@ void undo_bw (char *file, char *index_file) {
 
 
 
-int main () {
+int main (int arc, char **argv) {
   /* Ouverture fichier compressé
    * + Huffman a l'eners : récupère le fichier post mft
    * donc mtf dans le meme sens, copier coller fonction
@@ -256,5 +256,6 @@ int main () {
    *
    * Retourner, ecrire dans meme fichier/ailleurs decompression 
    */
+  undo_bw (RETURN_BW, INDEX_BW);
   return EXIT_SUCCESS;
 }
