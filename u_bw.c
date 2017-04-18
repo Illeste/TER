@@ -59,7 +59,7 @@ typedef struct list *list;
 
 void print_array (uint16_t a) {
   int i;
-  for (i = LETTER_SIZE - 1; i >= 0; i--)
+  for (i = 16 - 1; i >= 0; i--)
     (a & (1 << i)) == 0 ?printf("0"): printf("1");
   printf(" ");
 }
@@ -158,12 +158,12 @@ void reverse_bw (uint16_t *array, uint16_t index, int n) {
     for (i = 0; i < n; i++) {
       strings[i] = malloc (n * sizeof(uint16_t));
       for (j = 0; j < n ; j++)
-	strings[i][j] = 0;
+        strings[i][j] = 0;
     }
     /* Take the string, add a letter from array and then sort them */
     for (i = n - 1; i >= 0 ; i--) {
       for (j = 0; j < n; j++)
-	strings[j][i] = array[j];
+        strings[j][i] = array[j];
       // DEBUG
       /* printf ("Avant \n"); */
       /* print_sort_tab (strings, n); */
@@ -178,7 +178,7 @@ void reverse_bw (uint16_t *array, uint16_t index, int n) {
       // mais pas la bonne chose, essaye de voir si tu peux
       //
       /////////////////
-      
+
       merge_sort (strings, n, n);
       /* printf ("Apres \n"); */
       /* print_sort_tab (strings, n); */
@@ -187,7 +187,7 @@ void reverse_bw (uint16_t *array, uint16_t index, int n) {
        transformation */
     for (i = 0; i < n; i++)
       array[i] = strings[index][i];
-    
+
     for (i = 0; i < n; i++)
       free (strings[i]);
     free (strings);
@@ -218,7 +218,7 @@ void undo_bw (char *file, char *index_file) {
       data = read (file_fd, array + k, byte_read);
       data_read += data;
       if (data < 1)
-	flag = true;
+        flag = true;
     }
     read (index_fd, &index, byte_read);
     /* Applying the opposite of Burrows Wheeler to each block */
@@ -230,11 +230,11 @@ void undo_bw (char *file, char *index_file) {
     //
     // A voir, si ecriture dans un fichier,
     // ou on écrit sur le fichier d'entrée
-    // pour éviter de bourrer 
+    // pour éviter de bourrer
     //
     ////////////////////////////////
   }
-  
+
   free (array);
   close (file_fd);
   close (index_fd);
@@ -246,7 +246,200 @@ void undo_bw (char *file, char *index_file) {
 
 /* DECOMPRESSSION HUFFMAN */
 
+int cpy_data (uint16_t *array, int size_of_array, int nbaw_array,
+              uint16_t data, int size_of_data, int nbaw_data) {
+  int i;
+  int cpy_bits = 0;
+  for (i = size_of_data - nbaw_data - 1;
+      i >= 0 && (nbaw_array + cpy_bits) != size_of_array; i--) {
+    if ((data & (1 << i)) != 0)
+      *array = *array | (1 << (size_of_array - (nbaw_array + cpy_bits) - 1));
+    cpy_bits++;
+  }
+  return (cpy_bits);
+}
 
+struct list_huff {
+  uint64_t encode;
+  uint16_t data;
+  struct list_huff *next;
+};
+
+typedef struct list_huff *list_huff_t;
+
+// On trie la liste par ordre croissant de encode
+void add_on_list (list_huff_t *dictionnary, list_huff_t new_data,
+                  uint8_t size_read) {
+  list_huff_t tmp = dictionnary[size_read];
+  list_huff_t prec = NULL;
+  while (tmp != NULL) {
+    prec = tmp;
+    if (tmp->encode < new_data->encode) {
+      tmp = tmp->next;
+    }
+  }
+  if (tmp == NULL) {
+    // début de liste
+    if (prec == NULL)
+      dictionnary[size_read] = new_data;
+    // fin de liste
+    else
+      prec->next = new_data;
+    new_data->next = NULL;
+  }
+  // milieu de liste
+  else {
+    prec->next = new_data;
+    new_data->next = tmp;
+  }
+}
+
+void print_encode (uint16_t a, int size) {
+  int i;
+  for (i = size - 1; i >= 0; i--)
+    (a & (1 << i)) == 0 ?printf("0"): printf("1");
+  printf(" ");
+}
+
+void decomp_huffman () {
+  list_huff_t *dictionnary = malloc (sizeof (list_huff_t) * ALPHABET_SIZE);
+  for (int i = 0; i < ALPHABET_SIZE; i++)
+    dictionnary[i] = NULL;
+
+  uint16_t data_read;
+  unsigned i_data_read;
+  data_read = data_read ^ data_read;
+
+  /* Use to explain what we search */
+  unsigned mode = 1;
+
+  // nb de bits déjà copier
+  int nb_bits_cpy = 0;
+
+  /* Use to take the word */
+  uint16_t word_read = 0;
+
+  /* Use to take the size of encode */
+  uint8_t size_read = 0;
+
+  /* Use to take the size of encode */
+  uint64_t encode_read = 0;
+
+  unsigned i_cpy = 0;
+
+  list_huff_t new_data;
+
+  /* Save the encode_huffman */
+  int huff_code_file = open (ENCODE_HUF, O_RDONLY);
+  if (huff_code_file == -1) {
+    fprintf (stderr, "Décomp_Huffman: couldn't open to file of encode rules\n");
+    exit (EXIT_FAILURE);
+  }
+  // Tant que l'on a des truc à lire; on lit
+  while (read (huff_code_file, &data_read, sizeof (uint16_t)) > 0) {/*
+    printf("\nread : ");
+    print_array(data_read);
+    printf("\n");
+  }{*/
+    bool need_more_data = false;
+    i_data_read = 0;
+    while (!need_more_data) {
+      switch (mode) {
+        // recherche du word
+        case 1:
+          i_cpy = cpy_data (&word_read, 16, nb_bits_cpy,
+                            data_read, 16, i_data_read);
+          nb_bits_cpy += i_cpy;
+          i_data_read += i_cpy;
+//          printf("!!!!!!!MOD 1!!!!!!!\ni_cpy = %d\nnb bits cpy = %d\ndata read = %d\n", i_cpy, nb_bits_cpy, i_data_read);
+          // S'il ne reste plus de bits à copier pour le word
+          if (nb_bits_cpy == 16) {
+            nb_bits_cpy = 0;
+            mode = 2;
+          }
+          break;
+
+        // recherche de la size de l'encode
+        case 2:
+          i_cpy = cpy_data (&size_read, 8, nb_bits_cpy,
+                            data_read, 16, i_data_read);
+          nb_bits_cpy += i_cpy;
+          i_data_read += i_cpy;
+//          printf("!!!!!!!MOD 2!!!!!!!\ni_cpy = %d\nnb bits cpy = %d\ndata read = %d\n", i_cpy, nb_bits_cpy, i_data_read);
+          if (nb_bits_cpy == 8) {
+            nb_bits_cpy = 0;
+            mode = 3;
+          }
+          break;
+
+        // recherche de l'encode
+        case 3:
+          i_cpy = cpy_data (&encode_read, (int)size_read, nb_bits_cpy,
+                            data_read, 16, i_data_read);
+          nb_bits_cpy += i_cpy;
+          i_data_read += i_cpy;
+//          printf("!!!!!!!MOD 3!!!!!!!\ni_cpy = %d\nnb bits cpy = %d\ndata read = %d\n", i_cpy, nb_bits_cpy, i_data_read);
+          if (nb_bits_cpy == size_read) {
+            nb_bits_cpy = 0;
+            mode = 4;
+          }
+          break;
+
+        /* Add all data in dictionnary */
+        case 4:
+/*          new_data = malloc (sizeof (struct list_huff));
+          new_data->data = word_read;
+          new_data->encode = encode_read;
+*/
+/*
+          printf("\nword read :");
+          print_array(word_read);
+          printf("\nsize read :");
+          print_array(size_read);
+          printf("\nencode read :");
+          print_array(encode_read);
+          printf("\n");
+*/
+
+          printf ("%u : ", word_read);
+          print_encode (word_read, 16);
+          printf (" to ");
+          print_encode (encode_read, size_read);
+          printf("    , depth = %d", size_read);
+          printf("\n");
+
+/*
+          add_on_list (dictionnary, new_data, size_read);
+*/          mode = 1;
+            word_read = word_read ^ word_read;
+            size_read = size_read ^ size_read;
+            encode_read = encode_read ^ encode_read;
+          break;
+      }
+      if (i_data_read == 16) {
+        need_more_data = true;
+        data_read = data_read ^ data_read;
+      }
+    }
+  }
+
+  printf("YO YO YO \n");
+/*
+  // Print dictionnary
+  list_huff_t tmp;
+  for (int i = 0; i < ALPHABET_SIZE; i++) {
+    tmp = dictionnary[i];
+    while (tmp != NULL) {
+      printf ("%u : ", tmp->data);
+      print_encode (tmp->data, 16);
+      printf (" to ");
+      print_encode (tmp->encode, i);
+      printf("\n");
+      tmp = tmp->next;
+    }
+  }
+*/
+}
 
 int main (int arc, char **argv) {
   /* Ouverture fichier compressé
@@ -254,8 +447,9 @@ int main (int arc, char **argv) {
    * donc mtf dans le meme sens, copier coller fonction
    * bw decompression
    *
-   * Retourner, ecrire dans meme fichier/ailleurs decompression 
+   * Retourner, ecrire dans meme fichier/ailleurs decompression
    */
   undo_bw (RETURN_BW, INDEX_BW);
+  decomp_huffman ();
   return EXIT_SUCCESS;
 }
