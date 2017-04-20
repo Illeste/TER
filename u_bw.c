@@ -36,10 +36,12 @@
 /* DEBUG: Fichier ou se trouve le resultat bw inverse */
 #define INV_BW              ".bw_toto"
 
+#define INV_HUFF            "inv_huff"
+#define SIZE_HUF            ".size_huff"
+
 /* Huffman Structs */
 typedef struct node {
-  uint8_t data;
-  unsigned amount;
+  uint16_t data;
   struct node *left, *right;
 } node_t;
 
@@ -59,9 +61,12 @@ typedef struct list *list;
 
 void print_array (uint16_t a) {
   int i;
-  for (i = 16 - 1; i >= 0; i--)
+  for (i = 16 - 1; i >= 0; i--) {
+//    if (i == 11 || i == 7 || i == 3)
+//      printf(" ");
     (a & (1 << i)) == 0 ?printf("0"): printf("1");
-  printf(" ");
+  }
+//  printf(" ");
 }
 
 void print_encoding (transform_t t) {
@@ -246,9 +251,11 @@ void undo_bw (char *file, char *index_file) {
 
 /* DECOMPRESSSION HUFFMAN */
 
-int cpy_data (uint16_t *array, int size_of_array, int nbaw_array,
-              uint16_t data, int size_of_data, int nbaw_data) {
+int cpy_data (uint64_t *array, int size_of_array, int nbaw_array,
+              uint64_t data, int size_of_data, int nbaw_data) {
   int i;
+  if (size_of_data > 8)
+    printf("");
   int cpy_bits = 0;
   for (i = size_of_data - nbaw_data - 1;
       i >= 0 && (nbaw_array + cpy_bits) != size_of_array; i--) {
@@ -259,41 +266,6 @@ int cpy_data (uint16_t *array, int size_of_array, int nbaw_array,
   return (cpy_bits);
 }
 
-struct list_huff {
-  uint64_t encode;
-  uint16_t data;
-  struct list_huff *next;
-};
-
-typedef struct list_huff *list_huff_t;
-
-// On trie la liste par ordre croissant de encode
-void add_on_list (list_huff_t *dictionnary, list_huff_t new_data,
-                  uint8_t size_read) {
-  list_huff_t tmp = dictionnary[size_read];
-  list_huff_t prec = NULL;
-  while (tmp != NULL) {
-    prec = tmp;
-    if (tmp->encode < new_data->encode) {
-      tmp = tmp->next;
-    }
-  }
-  if (tmp == NULL) {
-    // début de liste
-    if (prec == NULL)
-      dictionnary[size_read] = new_data;
-    // fin de liste
-    else
-      prec->next = new_data;
-    new_data->next = NULL;
-  }
-  // milieu de liste
-  else {
-    prec->next = new_data;
-    new_data->next = tmp;
-  }
-}
-
 void print_encode (uint16_t a, int size) {
   int i;
   for (i = size - 1; i >= 0; i--)
@@ -301,11 +273,32 @@ void print_encode (uint16_t a, int size) {
   printf(" ");
 }
 
-void decomp_huffman () {
-  list_huff_t *dictionnary = malloc (sizeof (list_huff_t) * ALPHABET_SIZE);
-  for (int i = 0; i < ALPHABET_SIZE; i++)
-    dictionnary[i] = NULL;
+node_t *create_node () {
+  node_t *node = malloc (sizeof (node_t));
+  node->left = NULL;
+  node->right = NULL;
+}
 
+void add_data_on_tree (node_t *tree, uint8_t size_read, uint64_t encode_read,
+                       uint16_t word_read) {
+  node_t *tmp = tree;
+  for (uint8_t i = size_read; i > 0; i--) {
+    /* if the ith bit of encode_read equal 0, it go on the left, else right */
+    if ((encode_read & (1 << (i - 1))) == 0) {
+      if (tmp->left == NULL)
+        tmp->left = create_node ();
+      tmp = tmp->left;
+    }
+    else {
+      if (tmp->right == NULL)
+        tmp->right = create_node ();
+      tmp = tmp->right;
+    }
+  }
+  tmp->data = word_read;
+}
+
+node_t *create_dictionnary () {
   uint16_t data_read;
   unsigned i_data_read;
   data_read = data_read ^ data_read;
@@ -327,7 +320,8 @@ void decomp_huffman () {
 
   unsigned i_cpy = 0;
 
-  list_huff_t new_data;
+  /* Create a tree to store the dictionnary of data and encode */
+  node_t *tree = create_node();
 
   /* Save the encode_huffman */
   int huff_code_file = open (ENCODE_HUF, O_RDONLY);
@@ -336,10 +330,10 @@ void decomp_huffman () {
     exit (EXIT_FAILURE);
   }
   // Tant que l'on a des truc à lire; on lit
-  while (read (huff_code_file, &data_read, sizeof (uint16_t)) > 0) {/*
-    printf("\nread : ");
+  while (read (huff_code_file, &data_read, sizeof (uint16_t)) > 0) {
+/*//    printf("read : ");
     print_array(data_read);
-    printf("\n");
+//    printf("\n");
   }{*/
     bool need_more_data = false;
     i_data_read = 0;
@@ -347,13 +341,13 @@ void decomp_huffman () {
       switch (mode) {
         // recherche du word
         case 1:
-          i_cpy = cpy_data (&word_read, 16, nb_bits_cpy,
+          i_cpy = cpy_data (&word_read, 8, nb_bits_cpy,
                             data_read, 16, i_data_read);
           nb_bits_cpy += i_cpy;
           i_data_read += i_cpy;
 //          printf("!!!!!!!MOD 1!!!!!!!\ni_cpy = %d\nnb bits cpy = %d\ndata read = %d\n", i_cpy, nb_bits_cpy, i_data_read);
           // S'il ne reste plus de bits à copier pour le word
-          if (nb_bits_cpy == 16) {
+          if (nb_bits_cpy == 8) {
             nb_bits_cpy = 0;
             mode = 2;
           }
@@ -387,10 +381,7 @@ void decomp_huffman () {
 
         /* Add all data in dictionnary */
         case 4:
-/*          new_data = malloc (sizeof (struct list_huff));
-          new_data->data = word_read;
-          new_data->encode = encode_read;
-*/
+          add_data_on_tree (tree, size_read, encode_read, word_read);
 /*
           printf("\nword read :");
           print_array(word_read);
@@ -402,11 +393,11 @@ void decomp_huffman () {
 */
 
           printf ("%u : ", word_read);
-          print_encode (word_read, 16);
+          print_encode (word_read, 8);
           printf (" to ");
           print_encode (encode_read, size_read);
-          printf("    , depth = %d", size_read);
-          printf("\n");
+          printf ("    , depth = %d", size_read);
+          printf ("\n");
 
 /*
           add_on_list (dictionnary, new_data, size_read);
@@ -422,23 +413,104 @@ void decomp_huffman () {
       }
     }
   }
+  close (huff_code_file);
+  return tree;
+}
 
-  printf("YO YO YO \n");
-/*
-  // Print dictionnary
-  list_huff_t tmp;
-  for (int i = 0; i < ALPHABET_SIZE; i++) {
-    tmp = dictionnary[i];
-    while (tmp != NULL) {
-      printf ("%u : ", tmp->data);
-      print_encode (tmp->data, 16);
-      printf (" to ");
-      print_encode (tmp->encode, i);
-      printf("\n");
-      tmp = tmp->next;
+bool is_leaf (node_t *node) {
+  return (node->left == NULL && node->right == NULL);
+}
+
+
+int cpy_data2 (uint64_t *array, int size_of_array, int nbaw_array,
+              uint64_t data, int size_of_data, int nbaw_data) {
+  int i;
+  int cpy_bits = 0;
+  for (i = size_of_data - nbaw_data - 1;
+      i >= 0 && (nbaw_array + cpy_bits) != size_of_array; i--) {
+    if ((data & (1ULL << i)) != 0)
+      *array = (*array << 1) + 1;
+    else
+      *array = *array << 1;
+
+//    if ((data & (1ULL << i)) != 0)
+//      *array = *array | (1ULL << (size_of_array - (nbaw_array + cpy_bits) - 1));
+//    else
+//      *array = *array ^ (1ULL << (size_of_array - (nbaw_array + cpy_bits) - 1));
+
+    cpy_bits++;
+  }
+  return (cpy_bits);
+}
+
+uint64_t get_nb_writing_bits () {
+  int size_huf_file = open (SIZE_HUF, O_RDONLY);
+  if (size_huf_file == -1) {
+    fprintf (stderr, "Décomp_Huffman: couldn't open file SIZE_HUF\n");
+    exit (EXIT_FAILURE);
+  }
+  uint64_t nb = 0;
+  read (size_huf_file, &nb, sizeof (uint64_t));
+  close (size_huf_file);
+  return nb;
+}
+
+void decomp_huffman (node_t *tree) {
+  uint64_t nb_bits_on_file = get_nb_writing_bits ();
+  printf("nb_bits_on_file = %llu\n", nb_bits_on_file);
+  int huff_prev_result = open (RETURN_HUF, O_RDONLY);
+  if (huff_prev_result == -1) {
+    fprintf (stderr, "Décomp_Huffman: couldn't open file of previous result\n");
+    exit (EXIT_FAILURE);
+  }
+  /* Save the decode_huffman */
+  int huff_decode_file = open (INV_HUFF, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+  if (huff_decode_file == -1) {
+    fprintf (stderr, "Décomp_Huffman: couldn't open file of decode\n");
+    exit (EXIT_FAILURE);
+  }
+  uint8_t data_read;
+  uint64_t encode_read;
+  data_read = data_read ^ data_read;
+  encode_read = encode_read ^ encode_read;
+  unsigned i_encode_read = 0;
+  while (read (huff_prev_result, &data_read, sizeof (uint8_t)) > 0) {
+    cpy_data2 (&encode_read, 64, i_encode_read, data_read, 8, 0);
+    i_encode_read += 8;
+    bool find_word = true;
+    while (find_word) {
+      find_word = false;
+      node_t *tmp = tree;
+      for (unsigned i = i_encode_read; i > 0 && nb_bits_on_file != 0; i--) {
+        if ((encode_read & (1 << (i - 1))) != 0)
+          tmp = tmp->right;
+        else
+          tmp = tmp->left;
+        if (is_leaf (tmp)) {
+          if (write(huff_decode_file, &(tmp->data), sizeof(uint8_t)) == -1) {
+            fprintf (stderr, "Huffman: writing on file opened failed\n");
+            exit (EXIT_FAILURE);
+          }
+          nb_bits_on_file -= i_encode_read - (i - 1);
+          i_encode_read -= i_encode_read - (i - 1);
+          find_word = true;
+          break;
+        }
+      }
     }
   }
-*/
+  close (huff_prev_result);
+  close (huff_decode_file);
+}
+
+void delete_dictionnary (node_t *tree) {
+  if (tree->left != NULL) {
+    delete_dictionnary (tree->left);
+  }
+  if (tree->right != NULL) {
+    delete_dictionnary (tree->right);
+  }
+  free (tree);
 }
 
 int main (int arc, char **argv) {
@@ -449,7 +521,9 @@ int main (int arc, char **argv) {
    *
    * Retourner, ecrire dans meme fichier/ailleurs decompression
    */
-  undo_bw (RETURN_BW, INDEX_BW);
-  decomp_huffman ();
+//  undo_bw (RETURN_BW, INDEX_BW);
+  node_t *dictionnary = create_dictionnary ();
+  decomp_huffman (dictionnary);
+  delete_dictionnary (dictionnary);
   return EXIT_SUCCESS;
 }

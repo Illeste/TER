@@ -31,6 +31,7 @@
 #define DICTIONNARY_ENC     ".dico_enc"
 #define RETURN_HUF          "result_huffman"
 #define ENCODE_HUF          ".code_huff"
+#define SIZE_HUF            ".size_huff"
 
 
 /* Indicating if we have to read byte per byte or 2 by 2 */
@@ -63,6 +64,7 @@ void print_array (uint16_t a) {
     (a & (1 << i)) == 0 ?printf("0"): printf("1");
   printf(" ");
 }
+
 void print_array2 (uint16_t a) {
   int i;
   for (i = 15; i >= 0; i--)
@@ -72,11 +74,11 @@ void print_array2 (uint16_t a) {
 
 void print_encoding (transform_t t) {
   unsigned i, j;
-  for (i = 0; i < (t.depth + 1) / 8; i++) {
+  for (i = 0; i < t.depth / 8; i++) {
     for (j = 8; j != 0; j--)
       (t.encoding[i] & (1 << (j - 1))) == 0 ?printf("0"): printf("1");
   }
-  if ((t.depth + 1)  % 8) {
+  if (t.depth % 8) {
     for (j = t.depth % 8; j != 0; j--)
       (t.encoding[i] & (1 << (j-1))) == 0 ?printf("0"): printf("1");
   }
@@ -590,41 +592,9 @@ int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t to_cpy, int size,
   /* nbaw = nb_bits_already_wrote */
   int nbaw = 0;
 
-/*
-
-  printf("to_cpy :");
-  print_array2(to_cpy);
-  printf("\n");
-  printf("init to write :");
-  print_array2(*to_write);
-  printf("\n");
-
-*/
-
   nb_cpy = cpy_data2 (to_write, to_cpy, size,
                       nb_bits, nbaw);
   nb_bits += nb_cpy;
-/*  printf("to_cpy :");
-  print_array2(to_cpy);
-  printf("\n");*/
-
-/*
-  printf("nb_cpy = %d\n", nb_cpy);
-  printf("to write modify :");
-  print_array2(*to_write);
-  printf("\n");
-
-*/
-
-/*
-  printf("to_cpy :");
-  print_array2(to_cpy);
-  printf("\n");
-  printf("cpy_data :");
-  print_array2(*to_write);
-  printf("\n");*/
-//  while ((nbaw + nb_cpy) == size) {
-//printf("nb_bits before writing = %d\n", nb_bits);
   while (nb_bits == 16) {
 /*    printf("\nwriting :");
     print_array2(*to_write);
@@ -721,7 +691,7 @@ void huffman () {
       print_array2 (j);
       printf("\n");
 */      nb_bits = cpy_data_huffman (huff_code_file, &to_write, j,
-                                  sizeof (uint16_t) * BYTES_SIZE, nb_bits);
+                                  sizeof (uint8_t) * BYTES_SIZE, nb_bits);
       /* Print the size of encoding */
 /*      printf("depth : ");
       print_array (array[j].depth);
@@ -729,7 +699,7 @@ void huffman () {
 */      nb_bits = cpy_data_huffman (huff_code_file, &to_write, array[j].depth,
                                   sizeof (uint8_t) * BYTES_SIZE, nb_bits);
       /* Print the encoding */
-      int max_size = sizeof (uint16_t) * BYTES_SIZE;
+      int max_size = sizeof (uint8_t) * BYTES_SIZE;
       int nb_bits_encoding = array[j].depth;
       while (nb_bits_encoding != 0) {
 /*        printf("encode : ");
@@ -768,6 +738,8 @@ void huffman () {
   }
   uint8_t data_read, data_to_write = 0;
   unsigned width = 0;
+  uint64_t nb_bits_writing;
+  nb_bits_writing = nb_bits_writing ^ nb_bits_writing;
   for (i = 0; read(fd, &data_read, sizeof(uint8_t)) > 0; i++) {
     /* Write the encoding */
     unsigned k, l;
@@ -783,6 +755,7 @@ void huffman () {
             fprintf (stderr, "Huffman: writing on file opened failed\n");
             exit (EXIT_FAILURE);
           }
+          nb_bits_writing += width;
           width = 0;
           data_to_write = 0;
         }
@@ -801,6 +774,7 @@ void huffman () {
             fprintf (stderr, "Huffman: writing on file opened failed\n");
             exit (EXIT_FAILURE);
           }
+          nb_bits_writing += width;
           width = 0;
           data_to_write = 0;
         }
@@ -809,6 +783,7 @@ void huffman () {
   }
   // One last value to write
   if (width != 0) {
+    nb_bits_writing += width;
     while (width != 8) {
       data_to_write = data_to_write << 1;
       width++;
@@ -818,7 +793,16 @@ void huffman () {
       exit (EXIT_FAILURE);
     }
   }
-
+  int numb_write_file = open (SIZE_HUF, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+  if (numb_write_file == -1) {
+    fprintf (stderr, "Huffman: couldn't open SIZE_HUF file\n");
+    exit (EXIT_FAILURE);
+  }
+  if (write(numb_write_file, &nb_bits_writing, sizeof(uint64_t)) == -1) {
+    fprintf (stderr, "Huffman: writing on file SIZE_HUF failed\n");
+    exit (EXIT_FAILURE);
+  }
+  close (numb_write_file);
   for (i = 0; i < ALPHABET_SIZE; i++)
     if (array[i].encoding)
       free(array[i].encoding);
@@ -827,6 +811,7 @@ void huffman () {
   free (tab);
   close (result_file);
   close (fd);
+  printf("nb_bits_writing = %llu\n", nb_bits_writing);
 }
 ////////////////////
 //
