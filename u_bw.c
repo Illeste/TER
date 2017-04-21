@@ -16,7 +16,7 @@
 
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
-#define BLOCK_SIZE 20
+#define BLOCK_SIZE 2000
 /* Size of data scanned (2 bytes because we use uint16_t) */
 #define DATA_SIZE 2
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
