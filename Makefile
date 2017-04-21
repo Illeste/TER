@@ -1,5 +1,5 @@
 # Variables
-EXE= bw
+EXE= bw ubw
 
 # Usual compilation flags
 CFLAGS= -std=c99 -Wall -Wextra -g
@@ -9,7 +9,10 @@ CPPFLAGS= -I../include
 .PHONY: all clean help
 
 # Rules and targets
-all: $(EXE)
+all: $(EXE) ubw
+
+ubw: u_bw.c
+	$(CC) u_bw.c $(CFLAGS) $(CPPFLAGS) -o ubw
 
 clean:
 	@rm -f *.o $(EXE)

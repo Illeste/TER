@@ -367,7 +367,7 @@ void move_to_front () {
   /* Print dictionnary on file */
   tmp = begin;
   while (tmp != NULL) {
-    write (dictionnary_file, tmp->data, sizeof (uint8_t));
+    write (dictionnary_file, &tmp->data, sizeof (uint8_t));
     if (tmp->next != NULL)
       write (dictionnary_file, ":", sizeof (uint8_t));
     else

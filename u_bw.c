@@ -34,8 +34,8 @@
 #define RETURN_HUF          "result_huffman"
 #define ENCODE_HUF          ".code_huff"
 /* DEBUG: Fichier ou se trouve le resultat bw inverse */
-#define INV_BW              ".bw_toto"
-
+#define RETURN_UBW          "file"
+#define RETURN_UMTF         ".u_mft"
 #define INV_HUFF            "inv_huff"
 #define SIZE_HUF            ".size_huff"
 
@@ -169,24 +169,7 @@ void reverse_bw (uint16_t *array, uint16_t index, int n) {
     for (i = n - 1; i >= 0 ; i--) {
       for (j = 0; j < n; j++)
         strings[j][i] = array[j];
-      // DEBUG
-      /* printf ("Avant \n"); */
-      /* print_sort_tab (strings, n); */
-
-      /////////////////
-      //
-      // Erreur merge_sort, mettre les print
-      // Le sort part de gauche a droite, l'algo part de droite
-      // a gauche, donc le sort compare "0" à "0" et pas ce que je
-      // veux.
-      // Au contraire si je place de gauche a droite, sort bien
-      // mais pas la bonne chose, essaye de voir si tu peux
-      //
-      /////////////////
-
       merge_sort (strings, n, n);
-      /* printf ("Apres \n"); */
-      /* print_sort_tab (strings, n); */
     }
     /* Original word is at the position index after the reverse
        transformation */
@@ -202,7 +185,7 @@ void reverse_bw (uint16_t *array, uint16_t index, int n) {
 void undo_bw (char *file, char *index_file) {
   int file_fd = open (file, O_RDONLY),
     index_fd = open(index_file, O_RDONLY),
-    return_ubw = open ("toto", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    return_ubw = open (RETURN_UBW, O_WRONLY | O_CREAT | O_TRUNC, 0666);
   if (file_fd == -1 || index_fd == -1) {
     fprintf (stderr, "BW: couldn't open file\n");
     exit (EXIT_FAILURE);
@@ -231,13 +214,6 @@ void undo_bw (char *file, char *index_file) {
     int a;
     for (a = 0; a < data_read; a++)
       write (return_ubw, array + a, byte_read);
-    ////////////////////////////////
-    //
-    // A voir, si ecriture dans un fichier,
-    // ou on écrit sur le fichier d'entrée
-    // pour éviter de bourrer
-    //
-    ////////////////////////////////
   }
 
   free (array);
@@ -246,7 +222,67 @@ void undo_bw (char *file, char *index_file) {
 }
 
 /* DECOMPRESSION MTF */
+void swap (list first, list to_change, list prev_to_change) {
+  list tmp = to_change;
+  prev_to_change->next = to_change->next;
+  tmp->next = first;
+}
 
+
+void undo_mtf () {
+  int fd = open (RETURN_ENC, O_RDONLY),
+    dictionnary_file = open (DICTIONNARY_ENC, O_RDONLY);
+  if (fd == -1 || dictionnary_file == -1 ) {
+    fprintf (stderr, "Undo MTF: couldn't open file\n");
+    exit (EXIT_FAILURE);
+  }
+
+  /* Read and store the dictionnary used */
+  list dict = malloc (sizeof (struct list)), tmp = dict;
+  dict->next = NULL;
+  uint8_t data = 0;
+  uint8_t c;
+  while (1){
+    read (dictionnary_file, &data, sizeof (uint8_t));
+    tmp->data = data;
+    
+    read (dictionnary_file, &c, sizeof (uint8_t));
+    if (c == ';')
+      break;
+    tmp->next = malloc (sizeof (struct list));
+    tmp = tmp->next;
+  }
+
+  int result_file = open (RETURN_UMTF, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+  if (result_file == -1) {
+    fprintf (stderr, "Encoding: couldn't open to return result\n");
+    exit (EXIT_FAILURE);
+  }
+  /* Transform each number given by MTF to the corresponding letter */
+  list prev;
+  while (read (fd, &data, 1)) {
+    tmp = dict;
+    for (; data != 0; data--) {
+      prev = tmp;
+      tmp = tmp->next;
+    }
+    write (result_file, &(tmp->data), 1);
+    if (tmp != dict) {
+      swap (dict, tmp, prev);
+      dict = tmp;
+    }
+  }
+
+  while (dict->next){
+    tmp = dict->next;
+    free (dict);
+    dict = tmp;
+  }
+  free (dict);
+  close (fd);
+  close (result_file);
+  close (dictionnary_file);
+}
 
 
 /* DECOMPRESSSION HUFFMAN */
@@ -513,7 +549,7 @@ void delete_dictionnary (node_t *tree) {
   free (tree);
 }
 
-int main (int arc, char **argv) {
+int main (int argc, char **argv) {
   /* Ouverture fichier compressé
    * + Huffman a l'eners : récupère le fichier post mft
    * donc mtf dans le meme sens, copier coller fonction
@@ -521,9 +557,10 @@ int main (int arc, char **argv) {
    *
    * Retourner, ecrire dans meme fichier/ailleurs decompression
    */
-//  undo_bw (RETURN_BW, INDEX_BW);
-  node_t *dictionnary = create_dictionnary ();
-  decomp_huffman (dictionnary);
-  delete_dictionnary (dictionnary);
+  //  undo_bw (RETURN_BW, INDEX_BW);
+  undo_mtf();
+  //  node_t *dictionnary = create_dictionnary ();
+  //decomp_huffman (dictionnary);
+  //delete_dictionnary (dictionnary);
   return EXIT_SUCCESS;
 }
