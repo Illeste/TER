@@ -182,7 +182,7 @@ void reverse_bw (uint16_t *array, uint16_t index, int n) {
 }
 
 /* Given a file and indexes, reverses the Burrows Wheeler transformation */
-void undo_bw (char *file, char *index_file) {
+void undo_bw (const char *file, const char *index_file) {
   int file_fd = open (file, O_RDONLY),
     index_fd = open(index_file, O_RDONLY),
     return_ubw = open (RETURN_UBW, O_WRONLY | O_CREAT | O_TRUNC, 0666);
@@ -229,9 +229,10 @@ void swap (list first, list to_change, list prev_to_change) {
 }
 
 
-void undo_mtf () {
-  int fd = open (RETURN_ENC, O_RDONLY),
-    dictionnary_file = open (DICTIONNARY_ENC, O_RDONLY);
+void undo_mtf (const char *file_to_decode, const char *decode_dictionnary,
+               const char *result_on_file) {
+  int fd = open (file_to_decode, O_RDONLY),
+    dictionnary_file = open (decode_dictionnary, O_RDONLY);
   if (fd == -1 || dictionnary_file == -1 ) {
     fprintf (stderr, "Undo MTF: couldn't open file\n");
     exit (EXIT_FAILURE);
@@ -253,7 +254,7 @@ void undo_mtf () {
     tmp = tmp->next;
   }
 
-  int result_file = open (RETURN_UMTF, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+  int result_file = open (result_on_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
   if (result_file == -1) {
     fprintf (stderr, "Encoding: couldn't open to return result\n");
     exit (EXIT_FAILURE);
@@ -290,8 +291,6 @@ void undo_mtf () {
 int cpy_data (uint64_t *array, int size_of_array, int nbaw_array,
               uint64_t data, int size_of_data, int nbaw_data) {
   int i;
-  if (size_of_data > 8)
-    printf("");
   int cpy_bits = 0;
   for (i = size_of_data - nbaw_data - 1;
       i >= 0 && (nbaw_array + cpy_bits) != size_of_array; i--) {
@@ -313,6 +312,7 @@ node_t *create_node () {
   node_t *node = malloc (sizeof (node_t));
   node->left = NULL;
   node->right = NULL;
+  return node;
 }
 
 void add_data_on_tree (node_t *tree, uint8_t size_read, uint64_t encode_read,
@@ -334,7 +334,7 @@ void add_data_on_tree (node_t *tree, uint8_t size_read, uint64_t encode_read,
   tmp->data = word_read;
 }
 
-node_t *create_dictionnary () {
+node_t *create_dictionnary (const char *encode_huf) {
   uint16_t data_read;
   unsigned i_data_read;
   data_read = data_read ^ data_read;
@@ -360,7 +360,7 @@ node_t *create_dictionnary () {
   node_t *tree = create_node();
 
   /* Save the encode_huffman */
-  int huff_code_file = open (ENCODE_HUF, O_RDONLY);
+  int huff_code_file = open (encode_huf, O_RDONLY);
   if (huff_code_file == -1) {
     fprintf (stderr, "Décomp_Huffman: couldn't open to file of encode rules\n");
     exit (EXIT_FAILURE);
@@ -491,16 +491,17 @@ uint64_t get_nb_writing_bits () {
   return nb;
 }
 
-void decomp_huffman (node_t *tree) {
+void decomp_huffman (node_t *tree, const char *file_to_decode,
+                     const char *result_file) {
   uint64_t nb_bits_on_file = get_nb_writing_bits ();
-  printf("nb_bits_on_file = %llu\n", nb_bits_on_file);
-  int huff_prev_result = open (RETURN_HUF, O_RDONLY);
+  printf ("nb_bits_on_file = %lu\n", nb_bits_on_file);
+  int huff_prev_result = open (file_to_decode, O_RDONLY);
   if (huff_prev_result == -1) {
     fprintf (stderr, "Décomp_Huffman: couldn't open file of previous result\n");
     exit (EXIT_FAILURE);
   }
   /* Save the decode_huffman */
-  int huff_decode_file = open (INV_HUFF, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+  int huff_decode_file = open (result_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
   if (huff_decode_file == -1) {
     fprintf (stderr, "Décomp_Huffman: couldn't open file of decode\n");
     exit (EXIT_FAILURE);
@@ -557,10 +558,10 @@ int main (int argc, char **argv) {
    *
    * Retourner, ecrire dans meme fichier/ailleurs decompression
    */
-  //  undo_bw (RETURN_BW, INDEX_BW);
-  undo_mtf();
-  //  node_t *dictionnary = create_dictionnary ();
-  //decomp_huffman (dictionnary);
-  //delete_dictionnary (dictionnary);
+  node_t *dictionnary = create_dictionnary (ENCODE_HUF);
+  decomp_huffman (dictionnary, RETURN_HUF, INV_HUFF);
+  delete_dictionnary (dictionnary);
+  undo_mtf(RETURN_ENC, DICTIONNARY_ENC, RETURN_UMTF);
+  undo_bw (RETURN_BW, INDEX_BW);
   return EXIT_SUCCESS;
 }

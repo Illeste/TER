@@ -811,7 +811,7 @@ void huffman () {
   free (tab);
   close (result_file);
   close (fd);
-  printf("nb_bits_writing = %llu\n", nb_bits_writing);
+  printf("nb_bits_writing = %lu\n", nb_bits_writing);
 }
 ////////////////////
 //
@@ -828,6 +828,5 @@ int main (int argc, char **argv) {
   bw (argv[1]);
   move_to_front ();
   huffman ();
-
   return EXIT_SUCCESS;
 }
