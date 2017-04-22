@@ -245,7 +245,7 @@ void undo_mtf () {
   while (1){
     read (dictionnary_file, &data, sizeof (uint8_t));
     tmp->data = data;
-    
+
     read (dictionnary_file, &c, sizeof (uint8_t));
     if (c == ';')
       break;

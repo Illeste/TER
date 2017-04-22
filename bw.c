@@ -740,10 +740,10 @@ void huffman () {
   unsigned width = 0;
   uint64_t nb_bits_writing;
   nb_bits_writing = nb_bits_writing ^ nb_bits_writing;
-  for (i = 0; read(fd, &data_read, sizeof(uint8_t)) > 0; i++) {
+  for (i = 0; read (fd, &data_read, sizeof(uint8_t)) > 0; i++) {
     /* Write the encoding */
     unsigned k, l;
-    for (k = 0; k < (array[data_read].depth + 1) / 8; k++) {
+    for (k = 0; k < (array[data_read].depth / 8); k++) {
       for (l = 8; l != 0; l--) {
         if (!(array[data_read].encoding[k] & (1 << (l - 1))))
           data_to_write = data_to_write << 1;
@@ -751,7 +751,7 @@ void huffman () {
           data_to_write = (data_to_write << 1) + 1;
         width++;
         if (width == 8) {
-          if (write(result_file, &data_to_write, sizeof(uint8_t)) == -1) {
+          if (write (result_file, &data_to_write, sizeof(uint8_t)) == -1) {
             fprintf (stderr, "Huffman: writing on file opened failed\n");
             exit (EXIT_FAILURE);
           }
@@ -762,7 +762,7 @@ void huffman () {
       }
     }
     /* Write the rest of the encoding, if there is */
-    if ((array[data_read].depth + 1)  % 8) {
+    if (array[data_read].depth  % 8) {
       for (l = array[data_read].depth % 8; l != 0; l--) {
         if (!(array[data_read].encoding[k] & (1 << (l - 1))))
           data_to_write = data_to_write << 1;
@@ -770,7 +770,7 @@ void huffman () {
           data_to_write = (data_to_write << 1) + 1;
         width++;
         if (width == 8) {
-          if (write(result_file, &data_to_write, sizeof(uint8_t)) == -1) {
+          if (write (result_file, &data_to_write, sizeof(uint8_t)) == -1) {
             fprintf (stderr, "Huffman: writing on file opened failed\n");
             exit (EXIT_FAILURE);
           }
@@ -788,7 +788,7 @@ void huffman () {
       data_to_write = data_to_write << 1;
       width++;
     }
-    if (write(result_file, &data_to_write, sizeof(uint8_t)) == -1) {
+    if (write (result_file, &data_to_write, sizeof(uint8_t)) == -1) {
       fprintf (stderr, "Huffman: writing on file opened failed\n");
       exit (EXIT_FAILURE);
     }
@@ -798,7 +798,7 @@ void huffman () {
     fprintf (stderr, "Huffman: couldn't open SIZE_HUF file\n");
     exit (EXIT_FAILURE);
   }
-  if (write(numb_write_file, &nb_bits_writing, sizeof(uint64_t)) == -1) {
+  if (write (numb_write_file, &nb_bits_writing, sizeof(uint64_t)) == -1) {
     fprintf (stderr, "Huffman: writing on file SIZE_HUF failed\n");
     exit (EXIT_FAILURE);
   }
