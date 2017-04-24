@@ -214,8 +214,8 @@ void undo_bw (const char *file, const char *index_file) {
     for (int k = 0; k < block_size && !flag; k++) {
       data = read (file_fd, array + k, byte_read);
       data_read += data;
-      if (data_read < 1)
-	flag = true;
+      if (data < 1)
+        flag = true;
     }
     read (index_fd, &index, byte_read);
     /* Applying the opposite of Burrows Wheeler to each block */
@@ -262,6 +262,7 @@ void undo_mtf (const char *file_to_decode, const char *decode_dictionnary,
       break;
     tmp->next = malloc (sizeof (struct list));
     tmp = tmp->next;
+    tmp->next = NULL;
   }
 
   int result_file = open (result_on_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
@@ -299,7 +300,7 @@ void undo_mtf (const char *file_to_decode, const char *decode_dictionnary,
 /* DECOMPRESSSION HUFFMAN */
 
 int cpy_data (uint64_t *array, int size_of_array, int nbaw_array,
-              uint64_t data, int size_of_data, int nbaw_data) {
+              uint16_t data, int size_of_data, int nbaw_data) {
   int i;
   int cpy_bits = 0;
   for (i = size_of_data - nbaw_data - 1;
@@ -356,10 +357,10 @@ node_t *create_dictionnary (const char *encode_huf) {
   int nb_bits_cpy = 0;
 
   /* Use to take the word */
-  uint16_t word_read = 0;
+  uint64_t word_read = 0;
 
   /* Use to take the size of encode */
-  uint8_t size_read = 0;
+  uint64_t size_read = 0;
 
   /* Use to take the size of encode */
   uint64_t encode_read = 0;
@@ -419,7 +420,7 @@ node_t *create_dictionnary (const char *encode_huf) {
           nb_bits_cpy += i_cpy;
           i_data_read += i_cpy;
 //          printf("!!!!!!!MOD 3!!!!!!!\ni_cpy = %d\nnb bits cpy = %d\ndata read = %d\n", i_cpy, nb_bits_cpy, i_data_read);
-          if (nb_bits_cpy == size_read) {
+          if (nb_bits_cpy == (int)size_read) {
             nb_bits_cpy = 0;
             mode = 4;
           }
