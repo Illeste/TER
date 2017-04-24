@@ -16,7 +16,7 @@
 
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
-#define BLOCK_SIZE 2000
+#define BLOCK_SIZE 500
 /* Size of data scanned (2 bytes because we use uint16_t) */
 #define DATA_SIZE 2
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
@@ -195,18 +195,27 @@ void undo_bw (const char *file, const char *index_file) {
   int byte_read = 0, block_size = 0;
   read (index_fd, &byte_read, 1);
   read (index_fd, &block_size, 2);
+  /* void *array; */
+  /* if (byte_read == 1) */
+  /*   array = malloc (sizeof (uint8_t) * (block_size)); */
+  /* else */
+  /*   array = malloc (sizeof (uint16_t) * (block_size)); */
+  /* for (int i = 0; i < block_size; i++) */
+  /*   array[i] = 0; */
   uint16_t *array = malloc (sizeof (uint16_t) * (block_size));
+  for (int k = 0; k < block_size; k++) {
+    array[k] = 0;
+  }
   int data_read, data;
   uint16_t index = 0;
   bool flag = false;
   while (!flag) {
     data_read = 0;
-    //   data_read = read (file_fd, array, byte_read * block_size);
     for (int k = 0; k < block_size && !flag; k++) {
       data = read (file_fd, array + k, byte_read);
       data_read += data;
-      if (data < 1)
-        flag = true;
+      if (data_read < 1)
+	flag = true;
     }
     read (index_fd, &index, byte_read);
     /* Applying the opposite of Burrows Wheeler to each block */
@@ -239,10 +248,11 @@ void undo_mtf (const char *file_to_decode, const char *decode_dictionnary,
   }
 
   /* Read and store the dictionnary used */
-  list dict = malloc (sizeof (struct list)), tmp = dict;
+  list dict = malloc (sizeof (struct list));
+  list tmp = dict;
   dict->next = NULL;
   uint8_t data = 0;
-  uint8_t c;
+  uint8_t c = 0;
   while (1){
     read (dictionnary_file, &data, sizeof (uint8_t));
     tmp->data = data;
@@ -562,6 +572,7 @@ int main (int argc, char **argv) {
   decomp_huffman (dictionnary, RETURN_HUF, INV_HUFF);
   delete_dictionnary (dictionnary);
   undo_mtf(RETURN_ENC, DICTIONNARY_ENC, RETURN_UMTF);
+  printf("MTF fait \n");
   undo_bw (RETURN_BW, INDEX_BW);
   return EXIT_SUCCESS;
 }
