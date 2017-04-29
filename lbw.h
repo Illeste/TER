@@ -17,7 +17,7 @@
 
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
-#define BLOCK_SIZE 500
+#define BLOCK_SIZE 50
 /* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
 #define LETTER_SIZE 8
 #define BYTES_SIZE 8
@@ -69,10 +69,10 @@ void merge_sort (uint16_t **tab, unsigned tab_size, unsigned block_size);
 void swap (list first, list to_change, list prev_to_change);
 void cpy_data (uint16_t *array, uint16_t data);
 int cpy_data2 (uint16_t *array, uint16_t data, int size_of_data, int nb_bits,
-	       int nbaw);
+         int nbaw);
 int cpy_data3 (uint64_t *array, int size_of_array, int nbaw_array,
               uint16_t data, int size_of_data, int nbaw_data);
 
 int cpy_data4 (uint64_t *array, int size_of_array, int nbaw_array,
-              uint16_t data, int size_of_data, int nbaw_data);
+              uint64_t data, int size_of_data, int nbaw_data);
 #endif // LBW_H

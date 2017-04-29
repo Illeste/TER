@@ -97,7 +97,8 @@ void bw (char *file) {
       /* Store on array, all data with sizeof LETTER_SIZE */
       while (data_count >= LETTER_SIZE && j < BLOCK_SIZE) {
         array[j + 1] = 0;
-        cpy_data (array + j + 1, data_read);
+        cpy_data4 ((uint64_t*)(array + j + 1), sizeof (uint8_t) * BYTES_SIZE, 0,
+                  (uint64_t)data_read, LETTER_SIZE, 0);
         j++;
         data_count -= LETTER_SIZE;
         data_read = data_read >> LETTER_SIZE;
@@ -123,7 +124,7 @@ void bw (char *file) {
 
 //////////////////////
 //
-// MTF Encoding 
+// MTF Encoding
 //
 //////////////////
 
@@ -374,34 +375,31 @@ nbaw = nb_bits_already_wrote = nb de bits qui a déjà été écrit
 (ce dernier peut être non utile en fonction de la taille de l'entier à copier,
 c'est à dire si la taille ne dépasse pas sizeof (uint16_t))
 */
-int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t to_cpy, int size,
-                      int nb_bits_write) {
-  uint16_t *to_write = write_buf;
-  int nb_bits = nb_bits_write;
+int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t data, int size_of_data,
+                      int nbaw_write_buf) {
+  uint16_t *buffer = write_buf;
+  int nbaw_buf = nbaw_write_buf;
   int nb_cpy = 0;
-  /* nbaw = nb_bits_already_wrote */
-  int nbaw = 0;
-
-  nb_cpy = cpy_data2 (to_write, to_cpy, size,
-                      nb_bits, nbaw);
-  nb_bits += nb_cpy;
-  while (nb_bits == 16) {
-/*    printf("\nwriting :");
-    print_array2(*to_write);
-    printf("\n");
-*/    if (write (file, to_write, sizeof (uint16_t)) == -1) {
+  /* nbaw_data = nb_bits_already_wrote */
+  int nbaw_data = 0;
+  nb_cpy = cpy_data4 ((uint64_t*)buffer, 16, nbaw_buf,
+                     (uint64_t)data, size_of_data, nbaw_data);
+  nbaw_buf += nb_cpy;
+  while (nbaw_buf == 16) {
+    if (write (file, buffer, sizeof (uint16_t)) == -1) {
       fprintf (stderr, "Huffman: writing on file .code_huff failed\n");
       exit (EXIT_FAILURE);
     }
-    nb_bits = 0;
-    nbaw += nb_cpy;
-    if (nbaw != size) {
-      nb_cpy = cpy_data2 (to_write, to_cpy, size,
-                          nb_bits, nbaw);
-      nb_bits += nb_cpy;
+    *buffer = 0;
+    nbaw_buf = 0;
+    nbaw_data += nb_cpy;
+    if (nbaw_data != size_of_data) {
+      nb_cpy = cpy_data4 ((uint64_t*)buffer, 16, nbaw_buf,
+                         (uint64_t)data, size_of_data, nbaw_data);
+      nbaw_buf += nb_cpy;
     }
   }
-  return nb_bits;
+  return nbaw_buf;
 }
 
 void huffman () {
@@ -477,25 +475,16 @@ void huffman () {
     encoding = array[j].encoding;
     if (encoding) {
       /* Print the word */
-/*      printf("j : ");
-      print_array2 (j);
-      printf("\n");
-*/      nb_bits = cpy_data_huffman (huff_code_file, &to_write, j,
+      nb_bits = cpy_data_huffman (huff_code_file, &to_write, j,
                                   sizeof (uint8_t) * BYTES_SIZE, nb_bits);
       /* Print the size of encoding */
-/*      printf("depth : ");
-      print_array (array[j].depth);
-      printf("\n");
-*/      nb_bits = cpy_data_huffman (huff_code_file, &to_write, array[j].depth,
+      nb_bits = cpy_data_huffman (huff_code_file, &to_write, array[j].depth,
                                   sizeof (uint8_t) * BYTES_SIZE, nb_bits);
       /* Print the encoding */
       int max_size = sizeof (uint8_t) * BYTES_SIZE;
       int nb_bits_encoding = array[j].depth;
       while (nb_bits_encoding != 0) {
-/*        printf("encode : ");
-        print_array (*encoding);
-        printf("\n");
-*/        if (nb_bits_encoding > max_size) {
+        if (nb_bits_encoding > max_size) {
           nb_bits = cpy_data_huffman (huff_code_file, &to_write, *encoding,
                                       max_size, nb_bits);
           nb_bits_encoding -= max_size;

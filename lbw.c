@@ -155,15 +155,13 @@ int cpy_data3 (uint64_t *array, int size_of_array, int nbaw_array,
 }
 
 int cpy_data4 (uint64_t *array, int size_of_array, int nbaw_array,
-	       uint16_t data, int size_of_data, int nbaw_data) {
+         uint64_t data, int size_of_data, int nbaw_data) {
   int i;
   int cpy_bits = 0;
   for (i = size_of_data - nbaw_data - 1;
       i >= 0 && (nbaw_array + cpy_bits) != size_of_array; i--) {
     if ((data & (1ULL << i)) != 0)
-      *array = (*array << 1) + 1;
-    else
-      *array = *array << 1;
+      *array = *array | (1 << (size_of_array - (nbaw_array + cpy_bits) - 1));
     cpy_bits++;
   }
   return (cpy_bits);

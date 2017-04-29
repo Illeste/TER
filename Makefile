@@ -10,10 +10,10 @@ CPPFLAGS= -I../include
 # Rules and targets
 all: $(EXE)
 
-bw: bw.c lbw.c
+bw: bw.c lbw.c lbw.h
 	$(CC) $^ $(CFLAGS) $(CPPFLAGS) -o $@
 
-ubw: u_bw.c lbw.c
+ubw: u_bw.c lbw.c lbw.h
 	$(CC) $^ $(CFLAGS) $(CPPFLAGS) -o $@ 
 
 clean:
