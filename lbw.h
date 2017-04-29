@@ -18,9 +18,12 @@
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
 #define BLOCK_SIZE 50
-/* Alphabet used in Huffman's Algorithm has for size 2**LETTER_SIZE */
-#define LETTER_SIZE 8
 #define BYTES_SIZE 8
+/* Size of each letter read for each part */
+#define BW_SIZE   8
+#define MTF_SIZE  8
+#define HUFF_SIZE 8
+
 /* Should be 2**LETTER_SIZE */
 #define ALPHABET_SIZE 256
 /* Amount of data scanned in Huffman */

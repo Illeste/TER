@@ -2,7 +2,7 @@
 
 void print_array (uint16_t a) {
   int i;
-  for (i = LETTER_SIZE - 1; i >= 0; i--)
+  for (i = BW_SIZE - 1; i >= 0; i--)
     (a & (1 << i)) == 0 ?printf("0"): printf("1");
   printf(" ");
 }

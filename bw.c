@@ -2,8 +2,6 @@
 
 #include "lbw.h"
 
-int byte_write = (LETTER_SIZE == 8) ? 1 : 2;
-
 ////////////////////////////////////
 //
 // Burrows Wheeler Transformation
@@ -61,9 +59,9 @@ void bw (char *file) {
 
   /* Should contain the index then the word */
   uint16_t *array = malloc (sizeof (uint16_t) * (BLOCK_SIZE + 1));
-  unsigned nb_blocks = size * BYTES_SIZE / (LETTER_SIZE * BLOCK_SIZE);
+  unsigned nb_blocks = size * BYTES_SIZE / (BW_SIZE * BLOCK_SIZE);
   unsigned size_last_block = (size * BYTES_SIZE -
-                             (nb_blocks * LETTER_SIZE * BLOCK_SIZE))
+                             (nb_blocks * BW_SIZE * BLOCK_SIZE))
                              / BYTES_SIZE;
   if (size_last_block != 0)
     nb_blocks++;
@@ -78,6 +76,7 @@ void bw (char *file) {
 
   /* Write in header of the index file the size of read and the block
     size used in bw */
+  int byte_write = (BW_SIZE == 8) ? 1 : 2;
   array[0] = byte_write, array[1] = BLOCK_SIZE;
   write (index_file, array, 1);
   write (index_file, array + 1, 2);
@@ -86,22 +85,22 @@ void bw (char *file) {
   for (i = 0; i < BLOCK_SIZE + 1; i++)
     array[i] = 0;
 
-  /* WARNING: LETTER_SIZE == 8 or 16, or else not handled now */
+  /* WARNING: BW_SIZE == 8 or 16, or else not handled now */
   for (i = 0; i < nb_blocks; i++) {
     for (j = 0; j < BLOCK_SIZE; j++) {
       data_read = 0;
       /* Fill the array before passing through Burrows Wheeler */
-      read (fd, &data_read, 1);
+      read (fd, &data_read, byte_write);
 
       data_count += byte_write * BYTES_SIZE;
       /* Store on array, all data with sizeof LETTER_SIZE */
-      while (data_count >= LETTER_SIZE && j < BLOCK_SIZE) {
+      while (data_count >= BW_SIZE && j < BLOCK_SIZE) {
         array[j + 1] = 0;
         cpy_data ((uint64_t *)(array + j + 1), sizeof (uint8_t) * BYTES_SIZE, 0,
-                  (uint64_t)data_read, LETTER_SIZE, 0);
+                  (uint64_t)data_read, BW_SIZE, 0);
         j++;
-        data_count -= LETTER_SIZE;
-        data_read = data_read >> LETTER_SIZE;
+        data_count -= BW_SIZE;
+        data_read = data_read >> BW_SIZE;
       }
       j--;
     }
@@ -135,9 +134,10 @@ void move_to_front () {
     exit (EXIT_FAILURE);
   }
   uint8_t original;
-  uint8_t *reading_tab = malloc (sizeof (uint8_t) * (ALPHABET_SIZE));
+  int alp_size = pow (2, MTF_SIZE);
+  uint8_t *reading_tab = malloc (sizeof (uint8_t) * alp_size);
   int i = 0;
-  for (i = 0; i < ALPHABET_SIZE; i++)
+  for (i = 0; i < alp_size; i++)
     reading_tab[i] = 0;
   while (read(fd, &original, sizeof(uint8_t)) > 0)
     reading_tab[original] = 1;
@@ -145,7 +145,7 @@ void move_to_front () {
   /* Count each letter of the file */
   int count = 0;
   uint8_t first;
-  for (i = 0; i < ALPHABET_SIZE; i++)
+  for (i = 0; i < alp_size; i++)
     if (reading_tab[i] != 0) {
       reading_tab[i] = count;
       count++;
@@ -157,7 +157,7 @@ void move_to_front () {
   begin->data = first;
   begin->next = NULL;
   list tmp = begin;
-  for (i = 0; i < ALPHABET_SIZE; i++)
+  for (i = 0; i < alp_size; i++)
     if (reading_tab[i] != 0) {
       list next = malloc (sizeof (struct list));
       next->data = (uint8_t)i;
@@ -258,10 +258,10 @@ node_t *create_node (node_t *n1, node_t *n2) {
 }
 
 void get_min_amounts (node_t **cd, int *i1, int *i2) {
-  int index_min = 0, index = 0, i;
+  int index_min = 0, index = 0, i, alp_size = pow (2, HUFF_SIZE);
   bool first = false;
   /* Find two valid indexes */
-  for (i = 0; i < ALPHABET_SIZE; i++)
+  for (i = 0; i < alp_size; i++)
     if (cd[i]) {
       if (first) {
         index_min = i;
@@ -279,7 +279,7 @@ void get_min_amounts (node_t **cd, int *i1, int *i2) {
     index = tmp;
   }
   /* Find, if possible, other index with lower amount */
-  for (i++; i < ALPHABET_SIZE; i++) {
+  for (i++; i < alp_size; i++) {
     if (cd[i] && cd[i]->amount < cd[index]->amount) {
       if (cd[i]->amount < cd[index_min]->amount) {
         index = index_min;
@@ -409,9 +409,10 @@ void huffman () {
     exit (EXIT_FAILURE);
   }
   uint8_t data;
-  node_t **tab = malloc (sizeof (node_t *) * ALPHABET_SIZE);
+  unsigned alp_size = pow (2, HUFF_SIZE);
+  node_t **tab = malloc (sizeof (node_t *) * alp_size);
   unsigned i;
-  for (i = 0; i < ALPHABET_SIZE; i++)
+  for (i = 0; i < alp_size; i++)
     tab[i] = NULL;
   unsigned nb_letters = 0;
   /* Count the amount of each letter */
@@ -430,7 +431,7 @@ void huffman () {
   }
   /* DEBUG */
   unsigned k = 0;
-  for (int j = 0; j < ALPHABET_SIZE; j++) {
+  for (unsigned j = 0; j < alp_size; j++) {
     if (tab[j] != NULL) {
       printf ("j = %d,   ",j);
       print_array (tab[j]->data);
@@ -443,14 +444,14 @@ void huffman () {
 
   /* Creation of the Huffman Tree */
   node_t *root = huffman_tree (tab, nb_letters);
-  transform_t *array = malloc (sizeof (transform_t ) * ALPHABET_SIZE);
-  for (i = 0; i < ALPHABET_SIZE; i++)
+  transform_t *array = malloc (sizeof (transform_t ) * alp_size);
+  for (i = 0; i < alp_size; i++)
     array[i].encoding = 0;
   uint8_t init_encoding = 0;
   huffman_encoding (root, array, 0, &init_encoding);
   /* Print encoding */
   printf ("\nEncoding: <word> to <encoding>\n");
-  for (int j = 0; j < ALPHABET_SIZE; j++) {
+  for (unsigned j = 0; j < alp_size; j++) {
     if (array[j].encoding) {
       printf ("%d : ", j);
       print_array (j);
@@ -471,7 +472,7 @@ void huffman () {
   uint16_t to_write = 0;
   int nb_bits = 0;
   uint8_t *encoding;
-  for (uint16_t j = 0; j < ALPHABET_SIZE; j++) {
+  for (uint16_t j = 0; j < alp_size; j++) {
     encoding = array[j].encoding;
     if (encoding) {
       /* Print the word */
@@ -582,7 +583,7 @@ void huffman () {
     exit (EXIT_FAILURE);
   }
   close (numb_write_file);
-  for (i = 0; i < ALPHABET_SIZE; i++)
+  for (i = 0; i < alp_size; i++)
     if (array[i].encoding)
       free(array[i].encoding);
   free (array);
