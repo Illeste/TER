@@ -77,9 +77,6 @@ void bw (char *file) {
   /* Write in header of the index file the size of read and the block
     size used in bw */
   int byte_write = (BW_SIZE == 8) ? 1 : 2;
-  array[0] = byte_write, array[1] = BLOCK_SIZE;
-  write (index_file, array, 1);
-  write (index_file, array + 1, 2);
   unsigned i, j, data_count = 0;
   uint16_t data;
   
@@ -131,24 +128,24 @@ void move_to_front () {
     fprintf (stderr, "Encoding: couldn't open file\n");
     exit (EXIT_FAILURE);
   }
-  uint8_t original;
-  int alp_size = pow (2, MTF_SIZE);
-  uint8_t *reading_tab = malloc (sizeof (uint8_t) * alp_size);
-  int i = 0;
+  uint16_t original, i;
+  int alp_size = pow (2, MTF_SIZE),
+    rw_size = (MTF_SIZE == 8)? 1: 2;
+  uint16_t *reading_tab = malloc (sizeof (uint16_t) * alp_size);
   for (i = 0; i < alp_size; i++)
     reading_tab[i] = 0;
-  while (read(fd, &original, sizeof(uint8_t)) > 0)
+  while (read(fd, &original, rw_size) > 0)
     reading_tab[original] = 1;
 
   /* Count each letter of the file */
   int count = 0;
-  uint8_t first;
+  uint16_t first;
   for (i = 0; i < alp_size; i++)
     if (reading_tab[i] != 0) {
       reading_tab[i] = count;
       count++;
       if (count == 1)
-        first = (uint8_t)i;
+        first = i;
     }
   /* Making the dictionnary for MTF */
   list begin = malloc (sizeof (struct list));
@@ -158,7 +155,7 @@ void move_to_front () {
   for (i = 0; i < alp_size; i++)
     if (reading_tab[i] != 0) {
       list next = malloc (sizeof (struct list));
-      next->data = (uint8_t)i;
+      next->data = (uint16_t)i;
       next->next = NULL;
       tmp->next = next;
       tmp = next;
@@ -182,11 +179,11 @@ void move_to_front () {
   /* Print dictionnary on file */
   tmp = begin;
   while (tmp != NULL) {
-    write (dictionnary_file, &tmp->data, sizeof (uint8_t));
+    write (dictionnary_file, &tmp->data, rw_size);
     if (tmp->next != NULL)
-      write (dictionnary_file, ":", sizeof (uint8_t));
+      write (dictionnary_file, ":", 1);
     else
-      write (dictionnary_file, ";", sizeof (uint8_t));
+      write (dictionnary_file, ";", 1);
     tmp = tmp->next;
   }
   close (dictionnary_file);
@@ -200,7 +197,7 @@ void move_to_front () {
   }
   list prev;
   uint8_t new_val;
-  while (read(fd, &original, sizeof(uint8_t)) > 0) {
+  while (read(fd, &original, rw_size) > 0) {
     tmp = begin;
     /* Find the index of the letter original in the dictionnary */
     for (i = 0; tmp->data != original; i++) {
@@ -213,7 +210,7 @@ void move_to_front () {
       swap(begin, tmp, prev);
       begin = tmp;
     }
-    if (write(result_file, &new_val, sizeof(uint8_t)) == -1) {
+    if (write(result_file, &new_val, rw_size) == -1) {
       fprintf (stderr, "Encoding: writing on file opened failed\n");
       exit (EXIT_FAILURE);
     }

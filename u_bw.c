@@ -40,16 +40,14 @@ void undo_bw (const char *file, const char *index_file) {
   }
 
   /* Retrieving byte size and the block size */
-  int byte_read = 0, block_size = 0;
-  read (index_fd, &byte_read, 1);
-  read (index_fd, &block_size, 2);
-  uint16_t *array = calloc (block_size, sizeof (uint16_t));
+  int byte_read = (BW_SIZE == 8)? 1 : 2;
+  uint16_t *array = calloc (BLOCK_SIZE, sizeof (uint16_t));
   int data_read, data;
   uint16_t index = 0;
   bool flag = false;
   while (!flag) {
     data_read = 0;
-    for (int k = 0; k < block_size && !flag; k++) {
+    for (int k = 0; k < BLOCK_SIZE && !flag; k++) {
       data = read (file_fd, array + k, byte_read);
       data_read += data / byte_read;
       if (data < 1)
@@ -86,12 +84,13 @@ void undo_mtf (const char *file_to_decode, const char *decode_dictionnary,
   list dict = malloc (sizeof (struct list));
   list tmp = dict;
   dict->next = NULL;
-  uint8_t data = 0;
+  uint16_t data = 0;
   uint8_t c = 0;
-  while (1){
-    read (dictionnary_file, &data, sizeof (uint8_t));
+  int rw_size = (MTF_SIZE == 8) ? 1 : 2;
+  while (1) {
+    read (dictionnary_file, &data, rw_size);
     tmp->data = data;
-    read (dictionnary_file, &c, sizeof (uint8_t));
+    read (dictionnary_file, &c, 1);
     if (c == ';')
       break;
     tmp->next = malloc (sizeof (struct list));
@@ -106,13 +105,13 @@ void undo_mtf (const char *file_to_decode, const char *decode_dictionnary,
   }
   /* Transform each number given by MTF to the corresponding letter */
   list prev;
-  while (read (fd, &data, 1)) {
+  while (read (fd, &data, rw_size)) {
     tmp = dict;
     for (; data != 0; data--) {
       prev = tmp;
       tmp = tmp->next;
     }
-    write (result_file, &(tmp->data), 1);
+    write (result_file, &(tmp->data), rw_size);
     if (tmp != dict) {
       swap (dict, tmp, prev);
       dict = tmp;
