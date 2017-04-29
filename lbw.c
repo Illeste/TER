@@ -2,7 +2,7 @@
 
 int _open (char *file, int m) {
   int fd;
-  if (m == 1)	
+  if (m == 1)
     fd = open (file, O_RDONLY);
   else
     fd = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
@@ -127,7 +127,7 @@ int cpy_data (uint64_t *array, int size_of_array, int nbaw_array,
   for (i = size_of_data - nbaw_data - 1;
       i >= 0 && (nbaw_array + cpy_bits) != size_of_array; i--) {
     if ((data & (1UL << i)) != 0)
-      *array = *array | (1 << (size_of_array - (nbaw_array + cpy_bits) - 1));
+      *array = *array | (1UL << (size_of_array - (nbaw_array + cpy_bits) - 1));
     cpy_bits++;
   }
   return (cpy_bits);

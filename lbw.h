@@ -17,7 +17,7 @@
 
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
-#define BLOCK_SIZE 480
+#define BLOCK_SIZE 50
 #define BYTES_SIZE 8
 /* Size of each letter read for each part */
 #define BW_SIZE   8
@@ -41,7 +41,7 @@
 
 /* Huffman Structs */
 typedef struct node {
-  uint8_t data;
+  uint16_t data;
   unsigned amount;
   struct node *left, *right;
 } node_t;

@@ -49,7 +49,7 @@ void burrows_wheeler (uint16_t *s, unsigned block_size) {
 
 void bw (char *file) {
   int fd = _open (file, 1);
-  
+
   /* Getting file size */
   size_t size = lseek (fd, 0, SEEK_END);
   lseek (fd, 0, SEEK_SET);
@@ -72,7 +72,7 @@ void bw (char *file) {
   int byte_write = (BW_SIZE == 8) ? 1 : 2;
   unsigned i, j, data_count = 0;
   uint16_t data;
-  
+
   /* WARNING: BW_SIZE == 8 or 16, or else not handled now */
   for (i = 0; i < nb_blocks; i++) {
     for (j = 0; j < BLOCK_SIZE; j++) {
@@ -350,20 +350,21 @@ c'est à dire si la taille ne dépasse pas sizeof (uint16_t))
 int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t data, int size_of_data,
                       int nbaw_write_buf) {
   uint16_t *buffer = write_buf;
+  int size_buffer = sizeof (uint16_t) * BYTES_SIZE;
   int nbaw_buf = nbaw_write_buf;
   int nb_cpy = 0;
   /* nbaw_data = nb_bits_already_wrote */
   int nbaw_data = 0;
-  nb_cpy = cpy_data ((uint64_t *)buffer, 16, nbaw_buf,
+  nb_cpy = cpy_data ((uint64_t *)buffer, size_buffer, nbaw_buf,
                      (uint64_t)data, size_of_data, nbaw_data);
   nbaw_buf += nb_cpy;
-  while (nbaw_buf == 16) {
+  while (nbaw_buf == size_buffer) {
     write (file, buffer, sizeof (uint16_t));
     *buffer = 0;
     nbaw_buf = 0;
     nbaw_data += nb_cpy;
     if (nbaw_data != size_of_data) {
-      nb_cpy = cpy_data ((uint64_t *)buffer, 16, nbaw_buf,
+      nb_cpy = cpy_data ((uint64_t *)buffer, size_buffer, nbaw_buf,
                          (uint64_t)data, size_of_data, nbaw_data);
       nbaw_buf += nb_cpy;
     }
@@ -373,7 +374,7 @@ int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t data, int size_of_
 
 void huffman () {
   int fd = _open (RETURN_ENC, 1);
-  uint8_t data;
+  uint16_t data = 0;
   unsigned alp_size = pow (2, HUFF_SIZE);
   node_t **tab = malloc (sizeof (node_t *) * alp_size);
   unsigned i;
@@ -381,7 +382,8 @@ void huffman () {
     tab[i] = NULL;
   unsigned nb_letters = 0;
   /* Count the amount of each letter */
-  for (i = 0; read (fd, &data, sizeof(uint8_t)) > 0 && i < DATA_READ; i++) {
+  for (i = 0; read (fd, &data, HUFF_SIZE / BYTES_SIZE) > 0 &&
+              i < DATA_READ; i++) {
     if (tab[(int)data] == NULL) {
       node_t *new_data = malloc (sizeof (node_t));
       new_data->data = data;
@@ -399,7 +401,7 @@ void huffman () {
   for (unsigned j = 0; j < alp_size; j++) {
     if (tab[j] != NULL) {
       printf ("j = %d,   ",j);
-      print_array (tab[j]->data);
+      print_array2 (tab[j]->data);
       printf (", amount = %u\n", tab[j]->amount);
       k += tab[j]->amount;
     }
@@ -419,7 +421,7 @@ void huffman () {
   for (unsigned j = 0; j < alp_size; j++) {
     if (array[j].encoding) {
       printf ("%d : ", j);
-      print_array (j);
+      print_array2 (j);
       printf (" to ");
       print_encoding (array[j]);
       printf("    , depth = %d", array[j].depth);
@@ -432,15 +434,15 @@ void huffman () {
   uint16_t to_write = 0;
   int nb_bits = 0;
   uint8_t *encoding;
-  for (uint16_t j = 0; j < alp_size; j++) {
+  for (int j = 0; j < alp_size; j++) {
     encoding = array[j].encoding;
     if (encoding) {
       /* Print the word */
-      nb_bits = cpy_data_huffman (huff_code_file, &to_write, j,
-                                  sizeof (uint8_t) * BYTES_SIZE, nb_bits);
+      nb_bits = cpy_data_huffman (huff_code_file, &to_write, (uint16_t)j,
+                                  HUFF_SIZE, nb_bits);
       /* Print the size of encoding */
       nb_bits = cpy_data_huffman (huff_code_file, &to_write, array[j].depth,
-                                  sizeof (uint8_t) * BYTES_SIZE, nb_bits);
+                                  HUFF_SIZE, nb_bits);
       /* Print the encoding */
       int max_size = sizeof (uint8_t) * BYTES_SIZE;
       int nb_bits_encoding = array[j].depth;
@@ -460,29 +462,30 @@ void huffman () {
     }
   }
   uint16_t end = 0;
+  int to_push_end_of_encode = sizeof (to_write) * BYTES_SIZE;
   cpy_data_huffman (huff_code_file, &to_write, end,
-                                    sizeof (uint16_t) * BYTES_SIZE, nb_bits);
-
+                    to_push_end_of_encode, nb_bits);
   close (huff_code_file);
 
   /* Write encoded letters into the final file */
   lseek (fd, 0, SEEK_SET);
   int result_file = _open (RETURN_HUF, 2);
-  uint8_t data_read, data_to_write = 0;
+  uint16_t data_read = 0;
+  uint8_t data_to_write = 0;
   unsigned width = 0;
   uint64_t nb_bits_writing;
   nb_bits_writing = nb_bits_writing ^ nb_bits_writing;
-  for (i = 0; read (fd, &data_read, sizeof(uint8_t)) > 0; i++) {
+  for (i = 0; read (fd, &data_read, HUFF_SIZE / BYTES_SIZE) > 0; i++) {
     /* Write the encoding */
     unsigned k, l;
-    for (k = 0; k < (array[data_read].depth / 8); k++) {
-      for (l = 8; l != 0; l--) {
+    for (k = 0; k < (array[data_read].depth / BYTES_SIZE); k++) {
+      for (l = BYTES_SIZE; l != 0; l--) {
         if (!(array[data_read].encoding[k] & (1 << (l - 1))))
           data_to_write = data_to_write << 1;
         else
           data_to_write = (data_to_write << 1) + 1;
         width++;
-        if (width == 8) {
+        if (width == BYTES_SIZE) {
           write (result_file, &data_to_write, sizeof(uint8_t));
           nb_bits_writing += width;
           width = 0;
@@ -491,14 +494,14 @@ void huffman () {
       }
     }
     /* Write the rest of the encoding, if there is */
-    if (array[data_read].depth  % 8) {
-      for (l = array[data_read].depth % 8; l != 0; l--) {
+    if (array[data_read].depth  % BYTES_SIZE) {
+      for (l = array[data_read].depth % BYTES_SIZE; l != 0; l--) {
         if (!(array[data_read].encoding[k] & (1 << (l - 1))))
           data_to_write = data_to_write << 1;
         else
           data_to_write = (data_to_write << 1) + 1;
         width++;
-        if (width == 8) {
+        if (width == BYTES_SIZE) {
           write (result_file, &data_to_write, sizeof(uint8_t));
           nb_bits_writing += width;
           width = 0;
@@ -510,7 +513,7 @@ void huffman () {
   // One last value to write
   if (width != 0) {
     nb_bits_writing += width;
-    while (width != 8) {
+    while (width != BYTES_SIZE) {
       data_to_write = data_to_write << 1;
       width++;
     }
