@@ -48,11 +48,8 @@ void burrows_wheeler (uint16_t *s, unsigned block_size) {
 }
 
 void bw (char *file) {
-  int fd = open (file, O_RDONLY);
-  if (fd == -1) {
-    fprintf (stderr, "BW: couldn't open file\n");
-    exit (EXIT_FAILURE);
-  }
+  int fd = _open (file, 1);
+  
   /* Getting file size */
   size_t size = lseek (fd, 0, SEEK_END);
   lseek (fd, 0, SEEK_SET);
@@ -67,12 +64,8 @@ void bw (char *file) {
     nb_blocks++;
 
   /* Print the result into a file and index to another */
-  int result_file = open (RETURN_BW, O_WRONLY | O_CREAT | O_TRUNC, 0666),
-    index_file = open (INDEX_BW, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  if (result_file == -1 || index_file == -1) {
-    fprintf (stderr, "BW: couldn't open a file\n");
-    exit (EXIT_FAILURE);
-  }
+  int result_file = _open (RETURN_BW, 2),
+    index_file = _open (INDEX_BW, 2);
 
   /* Write in header of the index file the size of read and the block
     size used in bw */
@@ -123,11 +116,7 @@ void bw (char *file) {
 //////////////////
 
 void move_to_front () {
-  int fd = open (RETURN_BW, O_RDONLY);
-  if (fd == -1) {
-    fprintf (stderr, "Encoding: couldn't open file\n");
-    exit (EXIT_FAILURE);
-  }
+  int fd = _open (RETURN_BW, 1);
   uint16_t original, i;
   int alp_size = pow (2, MTF_SIZE),
     rw_size = (MTF_SIZE == 8)? 1: 2;
@@ -170,12 +159,7 @@ void move_to_front () {
   printf (")\n");
 
   /* Write the transformed file */
-  int dictionnary_file = open (DICTIONNARY_ENC,
-                              O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  if (dictionnary_file == -1) {
-    fprintf (stderr, "Encoding: couldn't open to return the dictionnary\n");
-    exit (EXIT_FAILURE);
-  }
+  int dictionnary_file = _open (DICTIONNARY_ENC, 2);
   /* Print dictionnary on file */
   tmp = begin;
   while (tmp != NULL) {
@@ -190,11 +174,7 @@ void move_to_front () {
 
   /* Write the transformed file */
   lseek (fd, 0, SEEK_SET);
-  int result_file = open (RETURN_ENC, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  if (result_file == -1) {
-    fprintf (stderr, "Encoding: couldn't open to return result\n");
-    exit (EXIT_FAILURE);
-  }
+  int result_file = _open (RETURN_ENC, 2);
   list prev;
   uint8_t new_val;
   while (read(fd, &original, rw_size) > 0) {
@@ -210,10 +190,7 @@ void move_to_front () {
       swap(begin, tmp, prev);
       begin = tmp;
     }
-    if (write(result_file, &new_val, rw_size) == -1) {
-      fprintf (stderr, "Encoding: writing on file opened failed\n");
-      exit (EXIT_FAILURE);
-    }
+    write(result_file, &new_val, rw_size);
   }
 
   while (begin->next != NULL) {
@@ -381,10 +358,7 @@ int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t data, int size_of_
                      (uint64_t)data, size_of_data, nbaw_data);
   nbaw_buf += nb_cpy;
   while (nbaw_buf == 16) {
-    if (write (file, buffer, sizeof (uint16_t)) == -1) {
-      fprintf (stderr, "Huffman: writing on file .code_huff failed\n");
-      exit (EXIT_FAILURE);
-    }
+    write (file, buffer, sizeof (uint16_t));
     *buffer = 0;
     nbaw_buf = 0;
     nbaw_data += nb_cpy;
@@ -398,11 +372,7 @@ int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t data, int size_of_
 }
 
 void huffman () {
-  int fd = open (RETURN_ENC, O_RDONLY);
-  if (fd == -1) {
-    fprintf (stderr, "Huffman: couldn't open file\n");
-    exit (EXIT_FAILURE);
-  }
+  int fd = _open (RETURN_ENC, 1);
   uint8_t data;
   unsigned alp_size = pow (2, HUFF_SIZE);
   node_t **tab = malloc (sizeof (node_t *) * alp_size);
@@ -458,12 +428,7 @@ void huffman () {
   }
 
   /* Print the code into a file */
-  int huff_code_file = open (ENCODE_HUF,
-                              O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  if (huff_code_file == -1) {
-    fprintf (stderr, "Huffman: couldn't open to return the encode\n");
-    exit (EXIT_FAILURE);
-  }
+  int huff_code_file = _open (ENCODE_HUF, 2);
   uint16_t to_write = 0;
   int nb_bits = 0;
   uint8_t *encoding;
@@ -502,15 +467,7 @@ void huffman () {
 
   /* Write encoded letters into the final file */
   lseek (fd, 0, SEEK_SET);
-  if (fd == -1) {
-    fprintf (stderr, "Huffman: couldn't open file\n");
-    exit (EXIT_FAILURE);
-  }
-  int result_file = open (RETURN_HUF, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  if (result_file == -1) {
-    fprintf (stderr, "Huffman: couldn't open to return result\n");
-    exit (EXIT_FAILURE);
-  }
+  int result_file = _open (RETURN_HUF, 2);
   uint8_t data_read, data_to_write = 0;
   unsigned width = 0;
   uint64_t nb_bits_writing;
@@ -526,10 +483,7 @@ void huffman () {
           data_to_write = (data_to_write << 1) + 1;
         width++;
         if (width == 8) {
-          if (write (result_file, &data_to_write, sizeof(uint8_t)) == -1) {
-            fprintf (stderr, "Huffman: writing on file opened failed\n");
-            exit (EXIT_FAILURE);
-          }
+          write (result_file, &data_to_write, sizeof(uint8_t));
           nb_bits_writing += width;
           width = 0;
           data_to_write = 0;
@@ -545,10 +499,7 @@ void huffman () {
           data_to_write = (data_to_write << 1) + 1;
         width++;
         if (width == 8) {
-          if (write (result_file, &data_to_write, sizeof(uint8_t)) == -1) {
-            fprintf (stderr, "Huffman: writing on file opened failed\n");
-            exit (EXIT_FAILURE);
-          }
+          write (result_file, &data_to_write, sizeof(uint8_t));
           nb_bits_writing += width;
           width = 0;
           data_to_write = 0;
@@ -563,20 +514,11 @@ void huffman () {
       data_to_write = data_to_write << 1;
       width++;
     }
-    if (write (result_file, &data_to_write, sizeof(uint8_t)) == -1) {
-      fprintf (stderr, "Huffman: writing on file opened failed\n");
-      exit (EXIT_FAILURE);
-    }
+    write (result_file, &data_to_write, sizeof(uint8_t));
   }
-  int numb_write_file = open (SIZE_HUF, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  if (numb_write_file == -1) {
-    fprintf (stderr, "Huffman: couldn't open SIZE_HUF file\n");
-    exit (EXIT_FAILURE);
-  }
-  if (write (numb_write_file, &nb_bits_writing, sizeof(uint64_t)) == -1) {
-    fprintf (stderr, "Huffman: writing on file SIZE_HUF failed\n");
-    exit (EXIT_FAILURE);
-  }
+  int numb_write_file = _open (SIZE_HUF, 2);
+  write (numb_write_file, &nb_bits_writing, sizeof(uint64_t));
+
   close (numb_write_file);
   for (i = 0; i < alp_size; i++)
     if (array[i].encoding)

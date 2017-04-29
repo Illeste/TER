@@ -30,14 +30,10 @@ void reverse_bw (uint16_t *array, uint16_t index, int n) {
 }
 
 /* Given a file and indexes, reverses the Burrows Wheeler transformation */
-void undo_bw (const char *file, const char *index_file) {
-  int file_fd = open (file, O_RDONLY),
-    index_fd = open(index_file, O_RDONLY),
-    return_ubw = open (RETURN_UBW, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  if (file_fd == -1 || index_fd == -1) {
-    fprintf (stderr, "BW: couldn't open file\n");
-    exit (EXIT_FAILURE);
-  }
+void undo_bw (char *file, char *index_file) {
+  int file_fd = _open (file, 1),
+    index_fd = _open(index_file, 1),
+    return_ubw = _open (RETURN_UBW, 2);
 
   /* Retrieving byte size and the block size */
   int byte_read = (BW_SIZE == 8)? 1 : 2;
@@ -71,14 +67,10 @@ void undo_bw (const char *file, const char *index_file) {
 //
 ////////////////
 
-void undo_mtf (const char *file_to_decode, const char *decode_dictionnary,
-               const char *result_on_file) {
-  int fd = open (file_to_decode, O_RDONLY),
-    dictionnary_file = open (decode_dictionnary, O_RDONLY);
-  if (fd == -1 || dictionnary_file == -1 ) {
-    fprintf (stderr, "Undo MTF: couldn't open file\n");
-    exit (EXIT_FAILURE);
-  }
+void undo_mtf (char *file_to_decode, char *decode_dictionnary,
+               char *result_on_file) {
+  int fd = _open (file_to_decode, 1),
+    dictionnary_file = _open (decode_dictionnary, 1);
 
   /* Read and store the dictionnary used */
   list dict = malloc (sizeof (struct list));
@@ -98,11 +90,7 @@ void undo_mtf (const char *file_to_decode, const char *decode_dictionnary,
     tmp->next = NULL;
   }
 
-  int result_file = open (result_on_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  if (result_file == -1) {
-    fprintf (stderr, "Encoding: couldn't open to return result\n");
-    exit (EXIT_FAILURE);
-  }
+  int result_file = _open (result_on_file, 2);
   /* Transform each number given by MTF to the corresponding letter */
   list prev;
   while (read (fd, &data, rw_size)) {
@@ -161,7 +149,7 @@ void add_data_on_tree (node_t *tree, uint8_t size_read, uint64_t encode_read,
   tmp->data = word_read;
 }
 
-node_t *create_dictionnary (const char *encode_huf) {
+node_t *create_dictionnary (char *encode_huf) {
   uint16_t data_read;
   unsigned i_data_read;
   data_read = data_read ^ data_read;
@@ -181,11 +169,8 @@ node_t *create_dictionnary (const char *encode_huf) {
   node_t *tree = create_node();
 
   /* Save the encode_huffman */
-  int huff_code_file = open (encode_huf, O_RDONLY);
-  if (huff_code_file == -1) {
-    fprintf (stderr, "Décomp_Huffman: couldn't open to file of encode rules\n");
-    exit (EXIT_FAILURE);
-  }
+  int huff_code_file = _open (encode_huf, 1);
+
   // Tant que l'on a des truc à lire; on lit
   while (read (huff_code_file, &data_read, sizeof (uint16_t)) > 0) {
     bool need_more_data = false;
@@ -261,32 +246,20 @@ bool is_leaf (node_t *node) {
 }
 
 uint64_t get_nb_writing_bits () {
-  int size_huf_file = open (SIZE_HUF, O_RDONLY);
-  if (size_huf_file == -1) {
-    fprintf (stderr, "Décomp_Huffman: couldn't open file SIZE_HUF\n");
-    exit (EXIT_FAILURE);
-  }
+  int size_huf_file = _open (SIZE_HUF, 1);
   uint64_t nb = 0;
   read (size_huf_file, &nb, sizeof (uint64_t));
   close (size_huf_file);
   return nb;
 }
 
-void decomp_huffman (node_t *tree, const char *file_to_decode,
-                     const char *result_file) {
+void decomp_huffman (node_t *tree, char *file_to_decode,
+                     char *result_file) {
   uint64_t nb_bits_on_file = get_nb_writing_bits ();
   printf ("nb_bits_on_file = %lu\n", nb_bits_on_file);
-  int huff_prev_result = open (file_to_decode, O_RDONLY);
-  if (huff_prev_result == -1) {
-    fprintf (stderr, "Décomp_Huffman: couldn't open file of previous result\n");
-    exit (EXIT_FAILURE);
-  }
+  int huff_prev_result = _open (file_to_decode, 1);
   /* Save the decode_huffman */
-  int huff_decode_file = open (result_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  if (huff_decode_file == -1) {
-    fprintf (stderr, "Décomp_Huffman: couldn't open file of decode\n");
-    exit (EXIT_FAILURE);
-  }
+  int huff_decode_file = _open (result_file, 2);
   uint8_t data_read;
   uint64_t encode_read;
   data_read = data_read ^ data_read;
@@ -305,11 +278,8 @@ void decomp_huffman (node_t *tree, const char *file_to_decode,
         else
           tmp = tmp->left;
         if (is_leaf (tmp)) {
-          if (write(huff_decode_file, &(tmp->data), sizeof(uint8_t)) == -1) {
-            fprintf (stderr, "Huffman: writing on file opened failed\n");
-            exit (EXIT_FAILURE);
-          }
-          nb_bits_on_file -= i_encode_read - (i - 1);
+          write(huff_decode_file, &(tmp->data), sizeof(uint8_t));
+	  nb_bits_on_file -= i_encode_read - (i - 1);
           i_encode_read -= i_encode_read - (i - 1);
           find_word = true;
           break;
@@ -339,6 +309,9 @@ int main (int argc, char **argv) {
    *
    * Retourner, ecrire dans meme fichier/ailleurs decompression
    */
+  /* if (argc != 2) perror ("Usage: ubw <file>"); exit (EXIT_FAILURE); */
+  /* Decompresser archive de l'entrée */
+  
   node_t *dictionnary = create_dictionnary (ENCODE_HUF);
   decomp_huffman (dictionnary, RETURN_HUF, INV_HUFF);
   delete_dictionnary (dictionnary);

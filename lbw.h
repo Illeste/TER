@@ -17,15 +17,13 @@
 
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
-#define BLOCK_SIZE 50
+#define BLOCK_SIZE 480
 #define BYTES_SIZE 8
 /* Size of each letter read for each part */
 #define BW_SIZE   8
 #define MTF_SIZE  8
 #define HUFF_SIZE 8
 
-/* Should be 2**LETTER_SIZE */
-#define ALPHABET_SIZE 256
 /* Amount of data scanned in Huffman */
 #define DATA_READ 50000
 /* Name of in betwwen files for storage */
@@ -40,7 +38,6 @@
 #define RETURN_UMTF         ".inv_mtf"
 #define INV_HUFF            ".inv_huff"
 
-/* Indicating if we have to read byte per byte or 2 by 2 */
 
 /* Huffman Structs */
 typedef struct node {
@@ -56,17 +53,19 @@ typedef struct {
 
 /* Encoding Structs */
 struct list {
-  uint8_t data;
+  uint16_t data;
   struct list *next;
 };
 
 typedef struct list *list;
+int _open (char *file, int m);
 /* Debug functions */
 void print_array (uint16_t a);
 void print_array2 (uint16_t a);
 void print_encoding (transform_t t);
 void print_encode (uint64_t a, int size);
 void print_sort_tab (uint8_t **tab, unsigned block_size);
+
 
 int compare (const void *a, const void *b, unsigned block_size);
 void merge_sort (uint16_t **tab, unsigned tab_size, unsigned block_size);

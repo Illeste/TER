@@ -1,5 +1,19 @@
 #include "lbw.h"
 
+int _open (char *file, int m) {
+  int fd;
+  if (m == 1)	
+    fd = open (file, O_RDONLY);
+  else
+    fd = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+  if (fd == -1) {
+    perror ("BW: error opening file");
+    exit (EXIT_FAILURE);
+  }
+  return fd;
+}
+
+
 void print_array (uint16_t a) {
   int i;
   for (i = BW_SIZE - 1; i >= 0; i--)
