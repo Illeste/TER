@@ -33,10 +33,11 @@
 #define RETURN_HUF          "result_huffman"
 #define ENCODE_HUF          ".code_huff"
 #define SIZE_HUF            ".size_huff"
-
+#define RETURN_UBW          "file"
+#define RETURN_UMTF         ".inv_mtf"
+#define INV_HUFF            ".inv_huff"
 
 /* Indicating if we have to read byte per byte or 2 by 2 */
-int byte_write = (LETTER_SIZE == 8) ? 1 : 2;
 
 /* Huffman Structs */
 typedef struct node {
@@ -72,5 +73,6 @@ int cpy_data2 (uint16_t *array, uint16_t data, int size_of_data, int nb_bits,
 int cpy_data3 (uint64_t *array, int size_of_array, int nbaw_array,
               uint16_t data, int size_of_data, int nbaw_data);
 
-
+int cpy_data4 (uint64_t *array, int size_of_array, int nbaw_array,
+              uint16_t data, int size_of_data, int nbaw_data);
 #endif // LBW_H
