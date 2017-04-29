@@ -62,7 +62,7 @@ void bw (char *file) {
   unsigned nb_blocks = size * BYTES_SIZE / (BW_SIZE * BLOCK_SIZE);
   unsigned size_last_block = (size * BYTES_SIZE -
                              (nb_blocks * BW_SIZE * BLOCK_SIZE))
-                             / BYTES_SIZE;
+                             / BW_SIZE;
   if (size_last_block != 0)
     nb_blocks++;
 
