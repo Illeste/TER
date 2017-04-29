@@ -9,13 +9,10 @@
 //////////////////////////////
 
 void reverse_bw (uint16_t *array, uint16_t index, int n) {
-  uint16_t **strings =  malloc (n * sizeof (*strings));
+  uint16_t **strings =  malloc (n * sizeof (uint16_t *));
     int i, j;
-    for (i = 0; i < n; i++) {
-      strings[i] = malloc (n * sizeof(uint16_t));
-      for (j = 0; j < n ; j++)
-        strings[i][j] = 0;
-    }
+    for (i = 0; i < n; i++)
+      strings[i] = calloc (n, sizeof(uint16_t));
     /* Take the string, add a letter from array and then sort them */
     for (i = n - 1; i >= 0 ; i--) {
       for (j = 0; j < n; j++)
@@ -46,10 +43,7 @@ void undo_bw (const char *file, const char *index_file) {
   int byte_read = 0, block_size = 0;
   read (index_fd, &byte_read, 1);
   read (index_fd, &block_size, 2);
-  uint16_t *array = malloc (sizeof (uint16_t) * (block_size));
-  for (int k = 0; k < block_size; k++) {
-    array[k] = 0;
-  }
+  uint16_t *array = calloc (block_size, sizeof (uint16_t));
   int data_read, data;
   uint16_t index = 0;
   bool flag = false;
@@ -57,7 +51,7 @@ void undo_bw (const char *file, const char *index_file) {
     data_read = 0;
     for (int k = 0; k < block_size && !flag; k++) {
       data = read (file_fd, array + k, byte_read);
-      data_read += data;
+      data_read += data / byte_read;
       if (data < 1)
         flag = true;
     }

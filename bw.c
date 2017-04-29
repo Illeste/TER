@@ -58,7 +58,7 @@ void bw (char *file) {
   lseek (fd, 0, SEEK_SET);
 
   /* Should contain the index then the word */
-  uint16_t *array = malloc (sizeof (uint16_t) * (BLOCK_SIZE + 1));
+  uint16_t *array = calloc (BLOCK_SIZE + 1, sizeof (uint16_t));
   unsigned nb_blocks = size * BYTES_SIZE / (BW_SIZE * BLOCK_SIZE);
   unsigned size_last_block = (size * BYTES_SIZE -
                              (nb_blocks * BW_SIZE * BLOCK_SIZE))
@@ -81,26 +81,24 @@ void bw (char *file) {
   write (index_file, array, 1);
   write (index_file, array + 1, 2);
   unsigned i, j, data_count = 0;
-  uint16_t data_read;
-  for (i = 0; i < BLOCK_SIZE + 1; i++)
-    array[i] = 0;
-
+  uint16_t data;
+  
   /* WARNING: BW_SIZE == 8 or 16, or else not handled now */
   for (i = 0; i < nb_blocks; i++) {
     for (j = 0; j < BLOCK_SIZE; j++) {
-      data_read = 0;
+      data = 0;
       /* Fill the array before passing through Burrows Wheeler */
-      read (fd, &data_read, byte_write);
+      read (fd, &data, byte_write);
 
       data_count += byte_write * BYTES_SIZE;
       /* Store on array, all data with sizeof LETTER_SIZE */
       while (data_count >= BW_SIZE && j < BLOCK_SIZE) {
         array[j + 1] = 0;
-        cpy_data ((uint64_t *)(array + j + 1), sizeof (uint8_t) * BYTES_SIZE, 0,
-                  (uint64_t)data_read, BW_SIZE, 0);
+        cpy_data ((uint64_t *)(array + j + 1), BW_SIZE, 0,
+                  (uint64_t)data, BW_SIZE, 0);
         j++;
         data_count -= BW_SIZE;
-        data_read = data_read >> BW_SIZE;
+        data = data >> BW_SIZE;
       }
       j--;
     }
