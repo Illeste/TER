@@ -62,17 +62,12 @@ typedef struct list *list;
 void print_array (uint16_t a);
 void print_array2 (uint16_t a);
 void print_encoding (transform_t t);
+void print_encode (uint64_t a, int size);
 void print_sort_tab (uint8_t **tab, unsigned block_size);
 
 int compare (const void *a, const void *b, unsigned block_size);
 void merge_sort (uint16_t **tab, unsigned tab_size, unsigned block_size);
 void swap (list first, list to_change, list prev_to_change);
-void cpy_data (uint16_t *array, uint16_t data);
-int cpy_data2 (uint16_t *array, uint16_t data, int size_of_data, int nb_bits,
-         int nbaw);
-int cpy_data3 (uint64_t *array, int size_of_array, int nbaw_array,
-              uint16_t data, int size_of_data, int nbaw_data);
-
-int cpy_data4 (uint64_t *array, int size_of_array, int nbaw_array,
+int cpy_data (uint64_t *array, int size_of_array, int nbaw_array,
               uint64_t data, int size_of_data, int nbaw_data);
 #endif // LBW_H

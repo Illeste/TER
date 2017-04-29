@@ -8,8 +8,6 @@
 //
 //////////////////////////////
 
-
-
 void reverse_bw (uint16_t *array, uint16_t index, int n) {
   uint16_t **strings =  malloc (n * sizeof (*strings));
     int i, j;
@@ -48,13 +46,6 @@ void undo_bw (const char *file, const char *index_file) {
   int byte_read = 0, block_size = 0;
   read (index_fd, &byte_read, 1);
   read (index_fd, &block_size, 2);
-  /* void *array; */
-  /* if (byte_read == 1) */
-  /*   array = malloc (sizeof (uint8_t) * (block_size)); */
-  /* else */
-  /*   array = malloc (sizeof (uint16_t) * (block_size)); */
-  /* for (int i = 0; i < block_size; i++) */
-  /*   array[i] = 0; */
   uint16_t *array = malloc (sizeof (uint16_t) * (block_size));
   for (int k = 0; k < block_size; k++) {
     array[k] = 0;
@@ -77,16 +68,14 @@ void undo_bw (const char *file, const char *index_file) {
     for (a = 0; a < data_read; a++)
       write (return_ubw, array + a, byte_read);
   }
-
   free (array);
   close (file_fd);
   close (index_fd);
 }
 
-
 /////////////////////
 //
-// MTF Decoding 
+// MTF Decoding
 //
 ////////////////
 
@@ -108,7 +97,6 @@ void undo_mtf (const char *file_to_decode, const char *decode_dictionnary,
   while (1){
     read (dictionnary_file, &data, sizeof (uint8_t));
     tmp->data = data;
-
     read (dictionnary_file, &c, sizeof (uint8_t));
     if (c == ';')
       break;
@@ -148,14 +136,11 @@ void undo_mtf (const char *file_to_decode, const char *decode_dictionnary,
   close (dictionnary_file);
 }
 
-
-/* DECOMPRESSSION HUFFMAN */
-void print_encode (uint16_t a, int size) {
-  int i;
-  for (i = size - 1; i >= 0; i--)
-    (a & (1 << i)) == 0 ?printf("0"): printf("1");
-  printf(" ");
-}
+/////////////////////
+//
+// HUFFMAN Decoding
+//
+////////////////
 
 node_t *create_node () {
   node_t *node = malloc (sizeof (node_t));
@@ -187,22 +172,16 @@ node_t *create_dictionnary (const char *encode_huf) {
   uint16_t data_read;
   unsigned i_data_read;
   data_read = data_read ^ data_read;
-
   /* Use to explain what we search */
   unsigned mode = 1;
-
   // nb de bits déjà copier
   int nb_bits_cpy = 0;
-
   /* Use to take the word */
   uint64_t word_read = 0;
-
   /* Use to take the size of encode */
   uint64_t size_read = 0;
-
   /* Use to take the size of encode */
   uint64_t encode_read = 0;
-
   unsigned i_cpy = 0;
 
   /* Create a tree to store the dictionnary of data and encode */
@@ -216,21 +195,16 @@ node_t *create_dictionnary (const char *encode_huf) {
   }
   // Tant que l'on a des truc à lire; on lit
   while (read (huff_code_file, &data_read, sizeof (uint16_t)) > 0) {
-/*//    printf("read : ");
-    print_array(data_read);
-//    printf("\n");
-  }{*/
     bool need_more_data = false;
     i_data_read = 0;
     while (!need_more_data) {
       switch (mode) {
         // recherche du word
         case 1:
-          i_cpy = cpy_data3 (&word_read, 8, nb_bits_cpy,
-                            data_read, 16, i_data_read);
+          i_cpy = cpy_data (&word_read, 8, nb_bits_cpy,
+                            (uint64_t)data_read, 16, i_data_read);
           nb_bits_cpy += i_cpy;
           i_data_read += i_cpy;
-//          printf("!!!!!!!MOD 1!!!!!!!\ni_cpy = %d\nnb bits cpy = %d\ndata read = %d\n", i_cpy, nb_bits_cpy, i_data_read);
           // S'il ne reste plus de bits à copier pour le word
           if (nb_bits_cpy == 8) {
             nb_bits_cpy = 0;
@@ -240,11 +214,10 @@ node_t *create_dictionnary (const char *encode_huf) {
 
         // recherche de la size de l'encode
         case 2:
-          i_cpy = cpy_data3 (&size_read, 8, nb_bits_cpy,
-                            data_read, 16, i_data_read);
+          i_cpy = cpy_data (&size_read, 8, nb_bits_cpy,
+                            (uint64_t)data_read, 16, i_data_read);
           nb_bits_cpy += i_cpy;
           i_data_read += i_cpy;
-//          printf("!!!!!!!MOD 2!!!!!!!\ni_cpy = %d\nnb bits cpy = %d\ndata read = %d\n", i_cpy, nb_bits_cpy, i_data_read);
           if (nb_bits_cpy == 8) {
             nb_bits_cpy = 0;
             mode = 3;
@@ -253,11 +226,10 @@ node_t *create_dictionnary (const char *encode_huf) {
 
         // recherche de l'encode
         case 3:
-          i_cpy = cpy_data3 (&encode_read, (int)size_read, nb_bits_cpy,
-                            data_read, 16, i_data_read);
+          i_cpy = cpy_data (&encode_read, (int)size_read, nb_bits_cpy,
+                            (uint64_t)data_read, 16, i_data_read);
           nb_bits_cpy += i_cpy;
           i_data_read += i_cpy;
-//          printf("!!!!!!!MOD 3!!!!!!!\ni_cpy = %d\nnb bits cpy = %d\ndata read = %d\n", i_cpy, nb_bits_cpy, i_data_read);
           if (nb_bits_cpy == (int)size_read) {
             nb_bits_cpy = 0;
             mode = 4;
@@ -267,29 +239,18 @@ node_t *create_dictionnary (const char *encode_huf) {
         /* Add all data in dictionnary */
         case 4:
           add_data_on_tree (tree, size_read, encode_read, word_read);
-/*
-          printf("\nword read :");
-          print_array(word_read);
-          printf("\nsize read :");
-          print_array(size_read);
-          printf("\nencode read :");
-          print_array(encode_read);
-          printf("\n");
-*/
 
-          printf ("%u : ", word_read);
+          printf ("%lu : ", word_read);
           print_encode (word_read, 8);
           printf (" to ");
           print_encode (encode_read, size_read);
           printf ("    , depth = %d", size_read);
           printf ("\n");
 
-/*
-          add_on_list (dictionnary, new_data, size_read);
-*/          mode = 1;
-            word_read = word_read ^ word_read;
-            size_read = size_read ^ size_read;
-            encode_read = encode_read ^ encode_read;
+          mode = 1;
+          word_read = word_read ^ word_read;
+          size_read = size_read ^ size_read;
+          encode_read = encode_read ^ encode_read;
           break;
       }
       if (i_data_read == 16) {
@@ -339,7 +300,7 @@ void decomp_huffman (node_t *tree, const char *file_to_decode,
   encode_read = encode_read ^ encode_read;
   unsigned i_encode_read = 0;
   while (read (huff_prev_result, &data_read, sizeof (uint8_t)) > 0) {
-    cpy_data4 (&encode_read, 64, i_encode_read, data_read, 8, 0);
+    cpy_data (&encode_read, 64, i_encode_read, data_read, 8, 0);
     i_encode_read += 8;
     bool find_word = true;
     while (find_word) {

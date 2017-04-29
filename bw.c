@@ -97,7 +97,7 @@ void bw (char *file) {
       /* Store on array, all data with sizeof LETTER_SIZE */
       while (data_count >= LETTER_SIZE && j < BLOCK_SIZE) {
         array[j + 1] = 0;
-        cpy_data4 ((uint64_t*)(array + j + 1), sizeof (uint8_t) * BYTES_SIZE, 0,
+        cpy_data ((uint64_t *)(array + j + 1), sizeof (uint8_t) * BYTES_SIZE, 0,
                   (uint64_t)data_read, LETTER_SIZE, 0);
         j++;
         data_count -= LETTER_SIZE;
@@ -382,7 +382,7 @@ int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t data, int size_of_
   int nb_cpy = 0;
   /* nbaw_data = nb_bits_already_wrote */
   int nbaw_data = 0;
-  nb_cpy = cpy_data4 ((uint64_t*)buffer, 16, nbaw_buf,
+  nb_cpy = cpy_data ((uint64_t *)buffer, 16, nbaw_buf,
                      (uint64_t)data, size_of_data, nbaw_data);
   nbaw_buf += nb_cpy;
   while (nbaw_buf == 16) {
@@ -394,7 +394,7 @@ int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t data, int size_of_
     nbaw_buf = 0;
     nbaw_data += nb_cpy;
     if (nbaw_data != size_of_data) {
-      nb_cpy = cpy_data4 ((uint64_t*)buffer, 16, nbaw_buf,
+      nb_cpy = cpy_data ((uint64_t *)buffer, 16, nbaw_buf,
                          (uint64_t)data, size_of_data, nbaw_data);
       nbaw_buf += nb_cpy;
     }
