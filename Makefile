@@ -4,15 +4,17 @@ EXE= bw ubw
 # Usual compilation flags
 CFLAGS= -std=c99 -Wall -Wextra -g
 CPPFLAGS= -I../include
-
 # Special rules and targets
 .PHONY: all clean help
 
 # Rules and targets
-all: $(EXE) ubw
+all: $(EXE)
 
-ubw: u_bw.c
-	$(CC) u_bw.c $(CFLAGS) $(CPPFLAGS) -o ubw
+bw: bw.c lbw.c
+	$(CC) $^ $(CFLAGS) $(CPPFLAGS) -o $@
+
+ubw: u_bw.c lbw.c
+	$(CC) $^ $(CFLAGS) $(CPPFLAGS) -o $@ 
 
 clean:
 	@rm -f *.o $(EXE)
