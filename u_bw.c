@@ -11,58 +11,110 @@ static unsigned BLOCK_SIZE = SIZE_BLOCK;
 //
 //////////////////////////////
 
-void reverse_bw (uint16_t *array, uint16_t index, int n) {
-  uint16_t **strings =  malloc (n * sizeof (uint16_t *));
-    int i, j;
-    for (i = 0; i < n; i++)
-      strings[i] = calloc (n, sizeof(uint16_t));
-    /* Take the string, add a letter from array and then sort them */
-    for (i = n - 1; i >= 0 ; i--) {
-      for (j = 0; j < n; j++)
-        strings[j][i] = array[j];
-      merge_sort (strings, n, n);
-    }
-    /* Original word is at the position index after the reverse
-       transformation */
-    for (i = 0; i < n; i++)
-      array[i] = strings[index][i];
-
-    for (i = 0; i < n; i++)
-      free (strings[i]);
-    free (strings);
-}
-
 /* Given a file and indexes, reverses the Burrows Wheeler transformation */
-void undo_bw (char *file, char *index_file) {
-  int file_fd = _open (file, 1),
-    index_fd = _open(index_file, 1),
-    return_ubw = _open (RETURN_UBW, 2);
 
-  /* Retrieving byte size and the block size */
-  int byte_read = (BW_SIZE == 8)? 1 : 2;
-  uint16_t *array = calloc (BLOCK_SIZE, sizeof (uint16_t));
-  int data_read, data;
-  uint16_t index = 0;
-  bool flag = false;
-  while (!flag) {
-    data_read = 0;
-    for (int k = 0; k < BLOCK_SIZE && !flag; k++) {
-      data = read (file_fd, array + k, byte_read);
-      data_read += data / byte_read;
-      if (data < 1)
-        flag = true;
+void undo_bw (char *file) {
+  unsigned alp_size = 256;
+  int file_fd = _open (file, 1),
+    return_ubw = _open (RETURN_UBW, 2);
+  uint8_t buffer [SIZE_BLOCK + 1];
+  unsigned int transform_vector[SIZE_BLOCK + 1],
+    count[alp_size + 1],
+    total[alp_size + 1];
+  
+  while (1) {
+    /* Retrieving block and first/last */
+    long length;
+    if (read (file_fd, &length, sizeof (long)) == 0)
+      break;
+    read (file_fd, (char *)buffer, length);
+    unsigned long first, last;
+    read (file_fd, (char *)&first, sizeof (long));
+    read (file_fd, (char *)&last, sizeof (long));
+
+    unsigned int i;
+    for (i = 0; i < alp_size + 1; i++)
+      count[i] = 0;
+    for (i = 0; i < (unsigned int) length; i++) {
+      if (i == last)
+	count[alp_size]++;
+      else
+	count[buffer[i]]++;
     }
-    read (index_fd, &index, byte_read);
-    /* Applying the opposite of Burrows Wheeler to each block */
-    reverse_bw (array, index, data_read);
-    int a;
-    for (a = 0; a < data_read; a++)
-      write (return_ubw, array + a, byte_read);
+
+     int sum = 0;
+     for (i = 0 ; i < alp_size + 1 ; i++) {
+       total[i] = sum;
+       sum += count[i];
+       count[i] = 0;
+     }
+
+     for (i = 0 ; i < (unsigned int) length ; i++) {
+       int index;
+       if (i == last)
+	 index = alp_size;
+       else
+	 index = buffer[i];
+       transform_vector[count[index] + total[index]] = i;
+       count[index]++;
+     }
+
+      unsigned int j;
+      i = (unsigned int) first;
+      for (j = 0 ; j < (unsigned int) (length - 1) ; j++) {
+	write (return_ubw, &buffer[i], 1);
+	i = transform_vector[i];
+      }
   }
-  free (array);
   close (file_fd);
-  close (index_fd);
-}
+  close (return_ubw);
+}  
+/*   for ( ; ; ) { */
+/*     if ( read((char *) &buflen, sizeof( long ), 1, file_fd ) == 0 ) */
+/* 	  break; */
+/*     fread( (char *)buffer, 1, (size_t) buflen, file_fd); */
+/*     unsigned long first; */
+/*     fread( (char *) &first, sizeof( long ), 1, file_fd ); */
+/*     unsigned long last; */
+/*     fread( (char *)&last, sizeof( long ), 1, file_fd ); */
+    
+/*     unsigned int i; */
+/*         for ( i = 0 ; i < 257 ; i++ ) */
+/* 	  Count[ i ] = 0; */
+/*         for ( i = 0 ; i < (unsigned int) buflen ; i++ ) */
+/* 	  if ( i == last ) */
+/* 	    Count[ 256 ]++; */
+/* 	  else */
+/* 	    Count[ buffer[ i ] ]++; */
+/*         int sum = 0; */
+/*         for ( i = 0 ; i < 257 ; i++ ) { */
+/* 	  RunningTotal[ i ] = sum; */
+/* 	  sum += Count[ i ]; */
+/* 	  Count[ i ] = 0; */
+/*         } */
+
+/* 	for ( i = 0 ; i < (unsigned int) buflen ; i++ ) { */
+/*             int index; */
+/*             if ( i == last ) */
+/*                 index = 256; */
+/*             else */
+/*                 index = buffer[ i ]; */
+/*             T[ Count[ index ] + RunningTotal[ index ] ] = i; */
+/*             Count[ index ]++; */
+/*         } */
+/* 	unsigned int j; */
+/*         i = (unsigned int) first; */
+/*         for ( j = 0 ; j < (unsigned int) ( buflen - 1 ) ; j++ ) { */
+/*             putc( buffer[ i ], return_ubw ); */
+/*             i = T[ i ]; */
+/*         } */
+/*   } */
+/* } */
+/* #define ALP_SIZE 256 */
+/* void undo_bw (char *file) { */
+ 
+  
+
 
 /////////////////////
 //
@@ -357,6 +409,6 @@ int main (int argc, char **argv) {
   decomp_huffman (dictionnary, RETURN_HUF, INV_HUFF);
   delete_dictionnary (dictionnary);
   undo_mtf(RETURN_ENC, DICTIONNARY_ENC, RETURN_UMTF);
-  undo_bw (RETURN_BW, INDEX_BW);
+  undo_bw (RETURN_BW);
   return EXIT_SUCCESS;
 }
