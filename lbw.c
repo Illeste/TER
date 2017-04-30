@@ -73,62 +73,6 @@ void print_sort_tab (uint8_t **tab, unsigned block_size) {
   printf("\n");
 }
 
-int compare (const void *a, const void *b, unsigned block_size) {
-  uint16_t *_a = (uint16_t *) a;
-  uint16_t *_b = (uint16_t *) b;
-  unsigned i;
-  /* Little endian storage */
-  for (i = 0; i < block_size; i++)
-    if (_a[i] != _b[i])
-      return _a[i] - _b[i];
-  return 0;
-}
-
-void merge (uint16_t **tab, uint16_t **tab2,
-            unsigned tab_size1, unsigned tab_size2, unsigned block_size) {
-  uint16_t *tmp1[tab_size1];
-  uint16_t *tmp2[tab_size2];
-  unsigned i;
-  for (i = 0; i < tab_size1; i++)
-    tmp1[i] = tab[i];
-  for (i = 0; i < tab_size2; i++)
-    tmp2[i] = tab2[i];
-  unsigned i_tab2 = 0;
-  unsigned i_tab1 = 0;
-  unsigned c = 0;
-  while (i_tab1 < tab_size1 && i_tab2 < tab_size2) {
-    if (compare(tmp1[i_tab1], tmp2[i_tab2], block_size) > 0) {
-      tab[c] = tmp2[i_tab2];
-      c++;
-      i_tab2++;
-    }
-    else {
-      tab[c] = tmp1[i_tab1];
-      c++;
-      i_tab1++;
-    }
-  }
-  if (i_tab1 == tab_size1)
-    for (i = i_tab2; i < tab_size2; i++) {
-      tab[c] = tmp2[i];
-      c++;
-    }
-  else
-    for (i = i_tab1; i < tab_size1; i++) {
-      tab[c] = tmp1[i];
-      c++;
-    }
-}
-
-void merge_sort (uint16_t **tab, unsigned tab_size, unsigned block_size) {
-  if (tab_size > 1){
-    unsigned tab_size1 = tab_size / 2;
-    unsigned tab_size2 = tab_size - tab_size1;
-    merge_sort (tab, tab_size1, block_size);
-    merge_sort (tab + tab_size1, tab_size2, block_size);
-    merge (tab, tab + tab_size1, tab_size1, tab_size2, block_size);
-  }
-}
 
 void swap (list first, list to_change, list prev_to_change) {
   list tmp = to_change;

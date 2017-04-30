@@ -3,7 +3,7 @@
 #include "lbw.h"
 
 static bool verbose = false;
-static unsigned BLOCK_SIZE = SIZE_BLOCK;
+unsigned BLOCK_SIZE = SIZE_BLOCK;
 
 ////////////////////////////////////
 //
@@ -12,10 +12,9 @@ static unsigned BLOCK_SIZE = SIZE_BLOCK;
 //////////////////////////////
 
 long block_size;
-unsigned char buffer[SIZE_BLOCK];
-int indexes[SIZE_BLOCK + 1];
+uint8_t *buffer;
 
-int compare2 (const int *i1, const int *i2) {
+int compare (const int *i1, const int *i2) {
   unsigned int l1 = (unsigned int) (block_size - *i1);
   unsigned int l2 = (unsigned int) (block_size - *i2);
   int result;
@@ -30,10 +29,11 @@ int compare2 (const int *i1, const int *i2) {
 void bw (char *file) {
   FILE *fd = fopen (file, "r"),
     *result_file = fopen (RETURN_BW, "w+");
-  
+  int indexes[BLOCK_SIZE + 1];  
+  buffer = malloc (sizeof (uint8_t) * BLOCK_SIZE);
   while(1) {
     /* Read from file */
-    block_size = fread((char *) buffer, 1, SIZE_BLOCK, fd);
+    block_size = fread((char *) buffer, 1, BLOCK_SIZE, fd);
     if (block_size == 0)
       break;
     /* Write how many bytes we will write, including the marker */
@@ -45,7 +45,7 @@ void bw (char *file) {
       indexes[i] = i;
     
     qsort (indexes, (int)(block_size + 1), sizeof (int),
-	  (int (*)(const void *, const void *)) compare2);
+	  (int (*)(const void *, const void *)) compare);
     /* Reconstruct the L column :
      * 
     */
@@ -56,7 +56,7 @@ void bw (char *file) {
 	first = i;
       if (indexes[i] == 0) {
 	last = i;
-	char c = '?';
+	char c = '$';
 	fwrite (&c, 1, sizeof (char), result_file);
       }
       else
@@ -65,6 +65,7 @@ void bw (char *file) {
     fwrite((char *) &first, 1, sizeof (long), result_file);
     fwrite((char *) &last, 1, sizeof (long), result_file);
   }
+  free (buffer);
   fclose (fd);
   fclose (result_file);
 }

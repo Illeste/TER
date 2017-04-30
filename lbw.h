@@ -28,7 +28,6 @@
 #define DATA_READ 50000
 /* Name of in betwwen files for storage */
 #define RETURN_BW           "result_bw"
-#define INDEX_BW            ".index_bw"
 #define RETURN_ENC          "result_encode"
 #define DICTIONNARY_ENC     ".dico_enc"
 #define RETURN_HUF          "result_huffman"
@@ -68,10 +67,8 @@ void print_encoding (transform_t t);
 void print_encode (uint64_t a, int size);
 void print_sort_tab (uint8_t **tab, unsigned block_size);
 
-
-int compare (const void *a, const void *b, unsigned block_size);
-void merge_sort (uint16_t **tab, unsigned tab_size, unsigned block_size);
 void swap (list first, list to_change, list prev_to_change);
 int cpy_data (uint64_t *array, int size_of_array, int nbaw_array,
               uint64_t data, int size_of_data, int nbaw_data);
+
 #endif // LBW_H
