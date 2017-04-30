@@ -117,25 +117,24 @@ void bw (char *file) {
 
 void move_to_front () {
   int fd = _open (RETURN_BW, 1);
-  uint16_t original, i;
+  uint16_t original;
   int alp_size = pow (2, MTF_SIZE),
     rw_size = (MTF_SIZE == 8)? 1: 2;
-  uint16_t *reading_tab = malloc (sizeof (uint16_t) * alp_size);
-  for (i = 0; i < alp_size; i++)
-    reading_tab[i] = 0;
+  uint16_t *reading_tab = calloc (alp_size, sizeof (uint16_t));
   while (read(fd, &original, rw_size) > 0)
     reading_tab[original] = 1;
 
   /* Count each letter of the file */
-  int count = 0;
+  int count = 0, i;
   uint16_t first;
-  for (i = 0; i < alp_size; i++)
+  for (i = 0; i < alp_size; i++) {
     if (reading_tab[i] != 0) {
       reading_tab[i] = count;
       count++;
       if (count == 1)
         first = i;
     }
+  }
   /* Making the dictionnary for MTF */
   list begin = malloc (sizeof (struct list));
   begin->data = first;
@@ -176,7 +175,7 @@ void move_to_front () {
   lseek (fd, 0, SEEK_SET);
   int result_file = _open (RETURN_ENC, 2);
   list prev;
-  uint8_t new_val;
+  uint16_t new_val;
   while (read(fd, &original, rw_size) > 0) {
     tmp = begin;
     /* Find the index of the letter original in the dictionnary */
@@ -184,7 +183,7 @@ void move_to_front () {
       prev = tmp;
       tmp = tmp->next;
     }
-    new_val = (uint8_t)i;
+    new_val = (uint16_t)i;
     /* Move tmp to the front of the dictionnary */
     if (i != 0) {
       swap(begin, tmp, prev);
@@ -539,6 +538,61 @@ void huffman () {
 //
 ///////////////
 
+/* The archive is composed by
+ * <size .code_huff> + <.code_huff> + <size .dico_enc> + <.dico_enc>
+ * + <size .index_bw> + <.index_bw> + <.size_huff> + <result_huffman>
+ */
+void archive_compress (char *file) {
+  /* Archive is named <file>.bw */
+  
+  int len = strlen (file) + strlen (".bw");
+  printf ("LEN : %d\n", len + 1);
+  char *archive = malloc (len);
+  strcpy (archive, file);
+  archive[len - 3] = '.';
+  archive[len - 2] = 'b';
+  archive[len - 1] = 'w';
+  archive[len] = '\0';
+  int fd =  _open (archive, 2);
+
+  int code_h = _open (ENCODE_HUF, 1),
+    dico_enc = _open (DICTIONNARY_ENC, 1),
+    index_bw = _open (INDEX_BW, 1),
+    size_huff= _open (SIZE_HUF, 1),
+    res_huff = _open (RETURN_HUF, 1);
+
+  int size = lseek (code_h, 0, SEEK_END);
+  lseek (code_h, 0, SEEK_SET);
+  write (fd, &size, 2);
+  char buffer[1];
+  while (read (code_h, &buffer, 1) > 0)
+    write (fd, &buffer, 1);
+
+  size = lseek (dico_enc, 0, SEEK_END);
+  lseek (dico_enc, 0, SEEK_SET);
+  write (fd, &size, 2);
+  while (read (dico_enc, &buffer, 1) > 0)
+    write (fd, &buffer, 1);
+
+  size = lseek (index_bw, 0, SEEK_END);
+  lseek (index_bw, 0, SEEK_SET);
+  write (fd, &size, sizeof (int));
+  while (read (index_bw, &buffer, 1) > 0)
+    write (fd, &buffer, 1);
+  
+  while (read (size_huff, &buffer, 1) > 0)
+    write (fd, &buffer, 1);
+
+  while (read (res_huff, &buffer, 1) > 0)
+    write (fd, &buffer, 1);
+
+  close (code_h);
+  close (index_bw);
+  close (dico_enc);
+  close (size_huff);
+  close (fd);
+  free (archive);
+}
 
 int main (int argc, char **argv) {
   if (argc < 2) {
@@ -548,5 +602,6 @@ int main (int argc, char **argv) {
   bw (argv[1]);
   move_to_front ();
   huffman ();
+  archive_compress (argv[1]);
   return EXIT_SUCCESS;
 }
