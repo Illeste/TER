@@ -11,105 +11,58 @@ static unsigned BLOCK_SIZE = SIZE_BLOCK;
 //
 //////////////////////////////
 
-uint16_t *shift (uint16_t *s, unsigned block_size) {
-  uint16_t *shifted_s = malloc (block_size * sizeof(uint16_t));
-  unsigned i;
-  /* For all uint8_t without the last */
-  for (i = 0; i < block_size - 1; i++) {
-    shifted_s[i + 1] = s[i];
-  }
-  /* And for the last uint8_t */
-  shifted_s[0] = s[block_size - 1];
-  return shifted_s;
-}
+long block_size;
+unsigned char buffer[SIZE_BLOCK];
+int indexes[SIZE_BLOCK + 1];
 
-void burrows_wheeler (uint16_t *s, unsigned block_size) {
-  uint16_t **strings = malloc (sizeof (uint16_t *) * (block_size));
-  unsigned i;
-  strings[0] = malloc (sizeof (uint16_t) * block_size);
-  for (i = 0; i < block_size; i++) {
-    strings[0][i] = s[i + 1];
-  }
-  for (i = 1; i < block_size; i++)
-    strings[i] = shift (strings[i - 1], block_size);
-  /* Sort the array by lexicographical order */
-  merge_sort (strings, block_size, block_size);
-  unsigned index = 0;
-  /* Search pos of the original string */
-  for (i = 0; i < block_size; i++) {
-    if (compare(s + 1, strings[i], block_size) == 0) {
-      index = i;
-      break;
-    }
-  }
-  s[0] = index;
-  for (i = 0; i < block_size; i++) {
-    s[i + 1] = strings[i][block_size - 1];
-    free(strings[i]);
-  }
-  free (strings);
+int compare2 (const int *i1, const int *i2) {
+  unsigned int l1 = (unsigned int) (block_size - *i1);
+  unsigned int l2 = (unsigned int) (block_size - *i2);
+  int result;
+  result = memcmp (buffer + *i1, buffer + *i2,
+		  l1 < l2 ? l1 : l2);
+  if (result == 0)
+    return l2 - l1;
+    else
+      return result;
 }
 
 void bw (char *file) {
-  int fd = _open (file, 1);
-
-  /* Getting file size */
-  size_t size = lseek (fd, 0, SEEK_END);
-  lseek (fd, 0, SEEK_SET);
-
-  /* Should contain the index then the word */
-  uint16_t *array = calloc (BLOCK_SIZE + 1, sizeof (uint16_t));
-  unsigned nb_blocks = size * BYTES_SIZE / (BW_SIZE * BLOCK_SIZE);
-  unsigned size_last_block = (size * BYTES_SIZE -
-                             (nb_blocks * BW_SIZE * BLOCK_SIZE))
-                             / BW_SIZE;
-  if (size_last_block != 0)
-    nb_blocks++;
-
-  /* Print the result into a file and index to another */
-  int result_file = _open (RETURN_BW, 2),
-    index_file = _open (INDEX_BW, 2);
-
-  /* Write in header of the index file the size of read and the block
-    size used in bw */
-  int byte_write = (BW_SIZE == 8) ? 1 : 2;
-  unsigned i, j, data_count = 0;
-  uint16_t data;
-
-  /* WARNING: BW_SIZE == 8 or 16, or else not handled now */
-  for (i = 0; i < nb_blocks; i++) {
-    for (j = 0; j < BLOCK_SIZE; j++) {
-      data = 0;
-      /* Fill the array before passing through Burrows Wheeler */
-      read (fd, &data, byte_write);
-
-      data_count += byte_write * BYTES_SIZE;
-      /* Store on array, all data with sizeof LETTER_SIZE */
-      while (data_count >= BW_SIZE && j < BLOCK_SIZE) {
-        array[j + 1] = 0;
-        cpy_data ((uint64_t *)(array + j + 1), BW_SIZE, 0,
-                  (uint64_t)data, BW_SIZE, 0);
-        j++;
-        data_count -= BW_SIZE;
-        data = data >> BW_SIZE;
+  FILE *fd = fopen (file, "r"),
+    *result_file = fopen (RETURN_BW, "w+");
+  
+  for ( ; ; ) {
+    /* Read from file */
+    block_size = fread((char *) buffer, 1, SIZE_BLOCK, fd);
+    if (block_size == 0)
+      break;
+    /* We don't copy and shift the string, only pass a pointer */
+    int i;
+    for (i = 0 ; i <= block_size ; i++)
+      indexes[ i ] = i;
+    
+    qsort (indexes, (int)(block_size + 1), sizeof (int),
+	  (int (*)(const void *, const void *)) compare2);
+    /* Reconstruct the L column :
+     * 
+    */
+    long first;
+    long last;
+    for ( i = 0 ; i <= block_size ; i++ ) {
+      if (indexes[i] == 1)
+	first = i;
+      if (indexes[i] == 0) {
+	last = i;
+	fputc('?', result_file);
       }
-      j--;
+      else
+	fputc(buffer[indexes[i] - 1], result_file);
     }
-    int block_size;
-    if (i == nb_blocks - 1 && size_last_block != 0)
-      block_size = size_last_block;
-    else
-      block_size = BLOCK_SIZE;
-    burrows_wheeler (array, block_size);
-    write (index_file, array, byte_write);
-    /* Write into result file */
-    for (int k = 1; k < block_size + 1; k++)
-      write (result_file, array + k, byte_write);
+    fwrite((char *) &first, 1, sizeof (long), result_file);
+    fwrite((char *) &last, 1, sizeof (long), result_file);
   }
-  free (array);
-  close (fd);
-  close (index_file);
-  close (result_file);
+  fclose (fd);
+  fclose (result_file);
 }
 
 //////////////////////
@@ -552,7 +505,7 @@ void huffman () {
 
 /* The archive is composed by
  * <size .code_huff> + <.code_huff> + <size .dico_enc> + <.dico_enc>
- * + <size .index_bw> + <.index_bw> + <.size_huff> + <result_huffman>
+ * + <.size_huff> + <result_huffman>
  */
 void archive_compress (char *file) {
   /* Archive is named <file>.bw */
@@ -568,7 +521,6 @@ void archive_compress (char *file) {
 
   int code_h = _open (ENCODE_HUF, 1),
     dico_enc = _open (DICTIONNARY_ENC, 1),
-    index_bw = _open (INDEX_BW, 1),
     size_huff= _open (SIZE_HUF, 1),
     res_huff = _open (RETURN_HUF, 1);
 
@@ -584,13 +536,7 @@ void archive_compress (char *file) {
   write (fd, &size, 2);
   while (read (dico_enc, &buffer, 1) > 0)
     write (fd, &buffer, 1);
-
-  size = lseek (index_bw, 0, SEEK_END);
-  lseek (index_bw, 0, SEEK_SET);
-  write (fd, &size, sizeof (int));
-  while (read (index_bw, &buffer, 1) > 0)
-    write (fd, &buffer, 1);
-
+  
   while (read (size_huff, &buffer, 1) > 0)
     write (fd, &buffer, 1);
 
@@ -598,7 +544,6 @@ void archive_compress (char *file) {
     write (fd, &buffer, 1);
 
   close (code_h);
-  close (index_bw);
   close (dico_enc);
   close (size_huff);
   close (fd);
