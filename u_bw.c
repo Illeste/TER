@@ -2,6 +2,8 @@
 
 #include "lbw.h"
 
+static bool verbose = false;
+
 ////////////////////////////////////
 //
 // Burrows Wheeler Reverse
@@ -219,12 +221,14 @@ node_t *create_dictionnary (char *encode_huf) {
         case 4:
           add_data_on_tree (tree, size_read, encode_read, word_read);
 
-          printf ("%lu : ", word_read);
-          print_encode (word_read, HUFF_SIZE);
-          printf (" to ");
-          print_encode (encode_read, size_read);
-          printf ("    , depth = %d", size_read);
-          printf ("\n");
+          if (verbose) {
+            printf ("%lu : ", word_read);
+            print_encode (word_read, HUFF_SIZE);
+            printf (" to ");
+            print_encode (encode_read, size_read);
+            printf ("    , depth = %d", size_read);
+            printf ("\n");
+          }
 
           mode = 1;
           word_read = word_read ^ word_read;
@@ -257,7 +261,8 @@ uint64_t get_nb_writing_bits () {
 void decomp_huffman (node_t *tree, char *file_to_decode,
                      char *result_file) {
   uint64_t nb_bits_on_file = get_nb_writing_bits ();
-  printf ("nb_bits_on_file = %lu\n", nb_bits_on_file);
+  if (verbose)
+    printf ("\nnb_bits_on_file = %lu\n", nb_bits_on_file);
   int huff_prev_result = _open (file_to_decode, 1);
   /* Save the decode_huffman */
   int huff_decode_file = _open (result_file, 2);
@@ -314,14 +319,39 @@ int main (int argc, char **argv) {
    *
    * Retourner, ecrire dans meme fichier/ailleurs decompression
    */
+  int optc;
+  static struct option long_opts[] =
+  {
+    {"verbose",   no_argument,        0,    'v'},
+    {"help",      no_argument,        0,    'h'},
+    {NULL,        0,                  NULL, 0}
+  };
   /* if (argc != 2) perror ("Usage: ubw <file>"); exit (EXIT_FAILURE); */
-  /* Decompresser archive de l'entrée */
+  while ((optc = getopt_long (argc, argv, "vh", long_opts, NULL)) != -1)
+  {
+    switch(optc)
+    {
+      case 'v': /* Verbose output */
+        verbose = true;
+        break;
 
+      case 'h': /* Display this help */
+        usage(EXIT_SUCCESS, argv[0]);
+        break;
+
+      default:
+        usage(EXIT_FAILURE, argv[0]);
+    }
+  }
+  /* Decompresser archive de l'entrée */
+/*  if (argc == 3)
+    (argv[2]);
+  else
+    (argv[1]);*/
   node_t *dictionnary = create_dictionnary (ENCODE_HUF);
   decomp_huffman (dictionnary, RETURN_HUF, INV_HUFF);
   delete_dictionnary (dictionnary);
   undo_mtf(RETURN_ENC, DICTIONNARY_ENC, RETURN_UMTF);
-  printf("MTF fait \n");
   undo_bw (RETURN_BW, INDEX_BW);
   return EXIT_SUCCESS;
 }
