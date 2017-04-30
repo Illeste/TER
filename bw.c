@@ -27,18 +27,18 @@ int compare (const int *i1, const int *i2) {
 }
 
 void bw (char *file) {
-  FILE *fd = fopen (file, "r"),
-    *result_file = fopen (RETURN_BW, "w+");
+  int fd = _open (file, 1),
+    result_file = _open (RETURN_BW, 2);
   int indexes[BLOCK_SIZE + 1];  
   buffer = malloc (sizeof (uint8_t) * BLOCK_SIZE);
   while(1) {
     /* Read from file */
-    block_size = fread((char *) buffer, 1, BLOCK_SIZE, fd);
+    block_size = read (fd, (char *) buffer, BLOCK_SIZE);
     if (block_size == 0)
       break;
     /* Write how many bytes we will write, including the marker */
-    long l = block_size + 1;
-    fwrite ((char *) &l, 1, sizeof(long), result_file);
+    int l = block_size + 1;
+    write (result_file, (char *) &l, sizeof(int));
     /* We don't copy and shift the string, only pass a pointer */
     int i;
     for (i = 0 ; i <= block_size ; i++)
@@ -50,25 +50,26 @@ void bw (char *file) {
     /* Reconstruct the L column :
      *
     */
-    long first;
-    long last;
+    int first;
+    int last;
     for (i = 0 ; i <= block_size ; i++) {
       if (indexes[i] == 1)
         first = i;
       if (indexes[i] == 0) {
 	last = i;
+	/* End of string marker */
 	char c = '$';
-	fwrite (&c, 1, sizeof (char), result_file);
+	write (result_file, &c, sizeof (char));
       }
       else
-        fwrite (&buffer[indexes[i] - 1], 1, sizeof (char), result_file);
+        write (result_file, &buffer[indexes[i] - 1], sizeof (char));
     }
-    fwrite((char *) &first, 1, sizeof (long), result_file);
-    fwrite((char *) &last, 1, sizeof (long), result_file);
+    write (result_file, (char *) &first,sizeof (int));
+    write (result_file, (char *) &last, sizeof (int));
   }
   free (buffer);
-  fclose (fd);
-  fclose (result_file);
+  close (fd);
+  close (result_file);
 }
 
 //////////////////////

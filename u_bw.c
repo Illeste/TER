@@ -14,28 +14,30 @@ static unsigned BLOCK_SIZE = SIZE_BLOCK;
 /* Given a file and indexes, reverses the Burrows Wheeler transformation */
 
 void undo_bw (char *file) {
-  unsigned alp_size = 256;
   int file_fd = _open (file, 1),
     return_ubw = _open (RETURN_UBW, 2);
+  
   uint8_t buffer [SIZE_BLOCK + 1];
+  int alp_size = 256;
   unsigned int transform_vector[SIZE_BLOCK + 1],
     count[alp_size + 1],
     total[alp_size + 1];
   
   while (1) {
     /* Retrieving block and first/last */
-    long length;
-    if (read (file_fd, &length, sizeof (long)) == 0)
+    int length;
+    if (read (file_fd, &length, sizeof (int)) == 0)
       break;
     read (file_fd, (char *)buffer, length);
-    unsigned long first, last;
-    read (file_fd, (char *)&first, sizeof (long));
-    read (file_fd, (char *)&last, sizeof (long));
+    int first, last;
+    read (file_fd, (char *)&first, sizeof (int));
+    read (file_fd, (char *)&last, sizeof (int));
 
-    unsigned int i;
+    int i;
+    
     for (i = 0; i < alp_size + 1; i++)
       count[i] = 0;
-    for (i = 0; i < (unsigned int) length; i++) {
+    for (i = 0; i < length; i++) {
       if (i == last)
 	count[alp_size]++;
       else
@@ -49,7 +51,7 @@ void undo_bw (char *file) {
        count[i] = 0;
      }
 
-     for (i = 0 ; i < (unsigned int) length ; i++) {
+     for (i = 0 ; i <  length ; i++) {
        int index;
        if (i == last)
 	 index = alp_size;
@@ -59,9 +61,9 @@ void undo_bw (char *file) {
        count[index]++;
      }
 
-      unsigned int j;
-      i = (unsigned int) first;
-      for (j = 0 ; j < (unsigned int) (length - 1) ; j++) {
+      int j;
+      i = first;
+      for (j = 0 ; j <  (length - 1) ; j++) {
 	write (return_ubw, &buffer[i], 1);
 	i = transform_vector[i];
       }
