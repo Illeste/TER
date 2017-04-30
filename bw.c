@@ -31,15 +31,18 @@ void bw (char *file) {
   FILE *fd = fopen (file, "r"),
     *result_file = fopen (RETURN_BW, "w+");
   
-  for ( ; ; ) {
+  while(1) {
     /* Read from file */
     block_size = fread((char *) buffer, 1, SIZE_BLOCK, fd);
     if (block_size == 0)
       break;
+    /* Write how many bytes we will write, including the marker */
+    long l = block_size + 1;
+    fwrite ((char *) &l, 1, sizeof(long), result_file);
     /* We don't copy and shift the string, only pass a pointer */
     int i;
     for (i = 0 ; i <= block_size ; i++)
-      indexes[ i ] = i;
+      indexes[i] = i;
     
     qsort (indexes, (int)(block_size + 1), sizeof (int),
 	  (int (*)(const void *, const void *)) compare2);
@@ -48,15 +51,16 @@ void bw (char *file) {
     */
     long first;
     long last;
-    for ( i = 0 ; i <= block_size ; i++ ) {
+    for (i = 0 ; i <= block_size ; i++) {
       if (indexes[i] == 1)
 	first = i;
       if (indexes[i] == 0) {
 	last = i;
-	fputc('?', result_file);
+	char c = '?';
+	fwrite (&c, 1, sizeof (char), result_file);
       }
       else
-	fputc(buffer[indexes[i] - 1], result_file);
+	fwrite (&buffer[indexes[i] - 1], 1, sizeof (char), result_file);
     }
     fwrite((char *) &first, 1, sizeof (long), result_file);
     fwrite((char *) &last, 1, sizeof (long), result_file);
@@ -397,7 +401,7 @@ void huffman () {
   uint16_t to_write = 0;
   int nb_bits = 0;
   uint8_t *encoding;
-  for (int j = 0; j < alp_size; j++) {
+  for (unsigned j = 0; j < alp_size; j++) {
     encoding = array[j].encoding;
     if (encoding) {
       /* Print the word */
