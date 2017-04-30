@@ -20,7 +20,7 @@ int compare2 (const int *i1, const int *i2) {
   unsigned int l2 = (unsigned int) (block_size - *i2);
   int result;
   result = memcmp (buffer + *i1, buffer + *i2,
-		  l1 < l2 ? l1 : l2);
+                   l1 < l2 ? l1 : l2);
   if (result == 0)
     return l2 - l1;
     else
@@ -30,7 +30,7 @@ int compare2 (const int *i1, const int *i2) {
 void bw (char *file) {
   FILE *fd = fopen (file, "r"),
     *result_file = fopen (RETURN_BW, "w+");
-  
+
   while(1) {
     /* Read from file */
     block_size = fread((char *) buffer, 1, SIZE_BLOCK, fd);
@@ -43,24 +43,24 @@ void bw (char *file) {
     int i;
     for (i = 0 ; i <= block_size ; i++)
       indexes[i] = i;
-    
+
     qsort (indexes, (int)(block_size + 1), sizeof (int),
-	  (int (*)(const void *, const void *)) compare2);
+           (int (*)(const void *, const void *)) compare2);
     /* Reconstruct the L column :
-     * 
+     *
     */
     long first;
     long last;
     for (i = 0 ; i <= block_size ; i++) {
       if (indexes[i] == 1)
-	first = i;
+        first = i;
       if (indexes[i] == 0) {
-	last = i;
-	char c = '?';
-	fwrite (&c, 1, sizeof (char), result_file);
+        last = i;
+        char c = '?';
+        fwrite (&c, 1, sizeof (char), result_file);
       }
       else
-	fwrite (&buffer[indexes[i] - 1], 1, sizeof (char), result_file);
+        fwrite (&buffer[indexes[i] - 1], 1, sizeof (char), result_file);
     }
     fwrite((char *) &first, 1, sizeof (long), result_file);
     fwrite((char *) &last, 1, sizeof (long), result_file);
@@ -77,7 +77,7 @@ void bw (char *file) {
 
 void move_to_front () {
   int fd = _open (RETURN_BW, 1);
-  uint16_t original;
+  uint16_t original = 0;
   int alp_size = pow (2, MTF_SIZE),
     rw_size = (MTF_SIZE == 8)? 1: 2;
   uint16_t *reading_tab = calloc (alp_size, sizeof (uint16_t));
@@ -108,7 +108,6 @@ void move_to_front () {
       tmp->next = next;
       tmp = next;
     }
-
   if (verbose) {
     tmp = begin;
     printf ("There are %d letters in the dictionnary :(", count);
@@ -377,8 +376,10 @@ void huffman () {
   /* Creation of the Huffman Tree */
   node_t *root = huffman_tree (tab, nb_letters);
   transform_t *array = malloc (sizeof (transform_t ) * alp_size);
-  for (i = 0; i < alp_size; i++)
+  for (i = 0; i < alp_size; i++){
+    array[i].depth = 0;
     array[i].encoding = 0;
+  }
   uint8_t init_encoding = 0;
   huffman_encoding (root, array, 0, &init_encoding);
   if (verbose) {
@@ -540,7 +541,7 @@ void archive_compress (char *file) {
   write (fd, &size, 2);
   while (read (dico_enc, &buffer, 1) > 0)
     write (fd, &buffer, 1);
-  
+
   while (read (size_huff, &buffer, 1) > 0)
     write (fd, &buffer, 1);
 
