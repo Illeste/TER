@@ -17,7 +17,7 @@
 
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
-#define BLOCK_SIZE 5000
+#define SIZE_BLOCK 5000
 #define BYTES_SIZE 8
 /* Size of each letter read for each part */
 #define BW_SIZE   8

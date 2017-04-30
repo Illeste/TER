@@ -3,6 +3,7 @@
 #include "lbw.h"
 
 static bool verbose = false;
+static unsigned BLOCK_SIZE = SIZE_BLOCK;
 
 ////////////////////////////////////
 //
@@ -555,9 +556,8 @@ void huffman () {
  */
 void archive_compress (char *file) {
   /* Archive is named <file>.bw */
-  
+
   int len = strlen (file) + strlen (".bw");
-  printf ("LEN : %d\n", len + 1);
   char *archive = malloc (len);
   strcpy (archive, file);
   archive[len - 3] = '.';
@@ -590,7 +590,7 @@ void archive_compress (char *file) {
   write (fd, &size, sizeof (int));
   while (read (index_bw, &buffer, 1) > 0)
     write (fd, &buffer, 1);
-  
+
   while (read (size_huff, &buffer, 1) > 0)
     write (fd, &buffer, 1);
 
@@ -615,15 +615,17 @@ int main (int argc, char **argv) {
   };
   /* Catch parameters and use them */
   if (argc < 2) {
-    fprintf (stderr, "BW: usage: bw <file>\n");
+    fprintf (stderr, "BW: usage: bw [option] <file>\n");
     exit (EXIT_FAILURE);
   }
-  while ((optc = getopt_long (argc, argv, "vh", long_opts, NULL)) != -1)
-  {
-    switch(optc)
-    {
+  int nb_optc = 0;
+  while ((optc = getopt_long (argc, argv, "vh", long_opts, NULL)) != -1) {
+    if (nb_optc == 1)
+      optc = 0;
+    switch (optc) {
       case 'v': /* Verbose output */
         verbose = true;
+        nb_optc++;
         break;
 
       case 'h': /* Display this help */
@@ -634,10 +636,14 @@ int main (int argc, char **argv) {
         usage(EXIT_FAILURE, argv[0]);
     }
   }
-  if (argc == 3)
+  if (argc == 4) {
+    BLOCK_SIZE = atoi (argv[3]);
     bw (argv[2]);
-  else
+  }
+  else {
+    BLOCK_SIZE = atoi (argv[2]);
     bw (argv[1]);
+  }
   move_to_front ();
   huffman ();
   archive_compress (argv[1]);

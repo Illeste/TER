@@ -3,6 +3,7 @@
 #include "lbw.h"
 
 static bool verbose = false;
+static unsigned BLOCK_SIZE = SIZE_BLOCK;
 
 ////////////////////////////////////
 //
@@ -327,12 +328,16 @@ int main (int argc, char **argv) {
     {NULL,        0,                  NULL, 0}
   };
   /* if (argc != 2) perror ("Usage: ubw <file>"); exit (EXIT_FAILURE); */
+  int nb_optc = 0;
   while ((optc = getopt_long (argc, argv, "vh", long_opts, NULL)) != -1)
   {
+    if (nb_optc == 1)
+      optc = 0;
     switch(optc)
     {
       case 'v': /* Verbose output */
         verbose = true;
+        nb_optc++;
         break;
 
       case 'h': /* Display this help */
@@ -344,10 +349,10 @@ int main (int argc, char **argv) {
     }
   }
   /* Decompresser archive de l'entrée */
-/*  if (argc == 3)
-    (argv[2]);
+  if (argc == 3)
+    BLOCK_SIZE = atoi (argv[2]);
   else
-    (argv[1]);*/
+    BLOCK_SIZE = atoi (argv[1]);
   node_t *dictionnary = create_dictionnary (ENCODE_HUF);
   decomp_huffman (dictionnary, RETURN_HUF, INV_HUFF);
   delete_dictionnary (dictionnary);
