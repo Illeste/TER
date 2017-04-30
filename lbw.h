@@ -17,7 +17,7 @@
 
 /* Size of each block passed through Burrows Wheeler */
 /* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
-#define BLOCK_SIZE 50
+#define BLOCK_SIZE 5000
 #define BYTES_SIZE 8
 /* Size of each letter read for each part */
 #define BW_SIZE   8
@@ -58,7 +58,9 @@ struct list {
 };
 
 typedef struct list *list;
+
 int _open (char *file, int m);
+void usage(int status, char *argv);
 /* Debug functions */
 void print_array (uint16_t a);
 void print_array2 (uint16_t a);

@@ -1,5 +1,21 @@
 #include "lbw.h"
 
+/* Display the helped message */
+void usage(int status, char *argv)
+{
+  if (status == EXIT_SUCCESS)
+  {
+    fprintf(stdout,
+      "Usage: %s [OPTION] FILE\n"
+      "Compress your file.\n"
+      "-v, --verbose		verbose output\n"
+      "-h, --help		display this help\n", argv);
+  }
+  else
+    fprintf(stderr, "Try '%s --help' for more information.\n", argv);
+  exit(status);
+}
+
 int _open (char *file, int m) {
   int fd;
   if (m == 1)

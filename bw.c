@@ -2,6 +2,8 @@
 
 #include "lbw.h"
 
+static bool verbose = false;
+
 ////////////////////////////////////
 //
 // Burrows Wheeler Transformation
@@ -148,14 +150,16 @@ void move_to_front () {
       tmp->next = next;
       tmp = next;
     }
-  /* DEBUG */
-  tmp = begin;
-  printf ("There are %d letters in the dictionnary :(", count);
-  for (i = 0; i < count; i++) {
-    printf ("%u,", tmp->data);
-    tmp = tmp->next;
+
+  if (verbose) {
+    tmp = begin;
+    printf ("There are %d letters in the dictionnary :(", count);
+    for (i = 0; i < count; i++) {
+      printf ("%u,", tmp->data);
+      tmp = tmp->next;
+    }
+    printf (")\n");
   }
-  printf (")\n");
 
   /* Write the transformed file */
   int dictionnary_file = _open (DICTIONNARY_ENC, 2);
@@ -399,14 +403,18 @@ void huffman () {
   unsigned k = 0;
   for (unsigned j = 0; j < alp_size; j++) {
     if (tab[j] != NULL) {
-      printf ("j = %d,   ",j);
-      print_array2 (tab[j]->data);
-      printf (", amount = %u\n", tab[j]->amount);
+      if (verbose) {
+        printf ("j = %d,   ",j);
+        print_array2 (tab[j]->data);
+        printf (", amount = %u\n", tab[j]->amount);
+      }
       k += tab[j]->amount;
     }
   }
-  printf ("\nOut of %u data analyzed", i);
-  printf ("\n");
+  if (verbose) {
+    printf ("\nOut of %u data analyzed", i);
+    printf ("\n");
+  }
 
   /* Creation of the Huffman Tree */
   node_t *root = huffman_tree (tab, nb_letters);
@@ -415,16 +423,18 @@ void huffman () {
     array[i].encoding = 0;
   uint8_t init_encoding = 0;
   huffman_encoding (root, array, 0, &init_encoding);
-  /* Print encoding */
-  printf ("\nEncoding: <word> to <encoding>\n");
-  for (unsigned j = 0; j < alp_size; j++) {
-    if (array[j].encoding) {
-      printf ("%d : ", j);
-      print_array2 (j);
-      printf (" to ");
-      print_encoding (array[j]);
-      printf("    , depth = %d", array[j].depth);
-      printf("\n");
+  if (verbose) {
+    /* Print encoding */
+    printf ("\nEncoding: <word> to <encoding>\n");
+    for (unsigned j = 0; j < alp_size; j++) {
+      if (array[j].encoding) {
+        printf ("%d : ", j);
+        print_array2 (j);
+        printf (" to ");
+        print_encoding (array[j]);
+        printf("    , depth = %d", array[j].depth);
+        printf("\n");
+      }
     }
   }
 
@@ -530,7 +540,8 @@ void huffman () {
   free (tab);
   close (result_file);
   close (fd);
-  printf("nb_bits_writing = %lu\n", nb_bits_writing);
+  if (verbose)
+    printf("\nnb_bits_writing = %lu\n", nb_bits_writing);
 }
 ////////////////////
 //
@@ -595,11 +606,38 @@ void archive_compress (char *file) {
 }
 
 int main (int argc, char **argv) {
+  int optc;
+  static struct option long_opts[] =
+  {
+    {"verbose",   no_argument,        0,    'v'},
+    {"help",      no_argument,        0,    'h'},
+    {NULL,        0,                  NULL, 0}
+  };
+  /* Catch parameters and use them */
   if (argc < 2) {
     fprintf (stderr, "BW: usage: bw <file>\n");
     exit (EXIT_FAILURE);
   }
-  bw (argv[1]);
+  while ((optc = getopt_long (argc, argv, "vh", long_opts, NULL)) != -1)
+  {
+    switch(optc)
+    {
+      case 'v': /* Verbose output */
+        verbose = true;
+        break;
+
+      case 'h': /* Display this help */
+        usage(EXIT_SUCCESS, argv[0]);
+        break;
+
+      default:
+        usage(EXIT_FAILURE, argv[0]);
+    }
+  }
+  if (argc == 3)
+    bw (argv[2]);
+  else
+    bw (argv[1]);
   move_to_front ();
   huffman ();
   archive_compress (argv[1]);
