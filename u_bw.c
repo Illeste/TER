@@ -17,9 +17,9 @@ void undo_bw (char *file) {
   int file_fd = _open (file, 1),
     return_ubw = _open (RETURN_UBW, 2);
   
-  uint8_t buffer [SIZE_BLOCK + 1];
+  uint8_t buffer [BLOCK_SIZE + 1];
   int alp_size = 256;
-  unsigned int transform_vector[SIZE_BLOCK + 1],
+  unsigned int transform_vector[BLOCK_SIZE + 1],
     count[alp_size + 1],
     total[alp_size + 1];
   
@@ -30,8 +30,8 @@ void undo_bw (char *file) {
       break;
     read (file_fd, (char *)buffer, length);
     int first, last;
-    read (file_fd, (char *)&first, sizeof (int));
-    read (file_fd, (char *)&last, sizeof (int));
+    read (file_fd, &first, sizeof (int));
+    read (file_fd, &last, sizeof (int));
 
     int i;
     
@@ -71,52 +71,6 @@ void undo_bw (char *file) {
   close (file_fd);
   close (return_ubw);
 }  
-/*   for ( ; ; ) { */
-/*     if ( read((char *) &buflen, sizeof( long ), 1, file_fd ) == 0 ) */
-/* 	  break; */
-/*     fread( (char *)buffer, 1, (size_t) buflen, file_fd); */
-/*     unsigned long first; */
-/*     fread( (char *) &first, sizeof( long ), 1, file_fd ); */
-/*     unsigned long last; */
-/*     fread( (char *)&last, sizeof( long ), 1, file_fd ); */
-    
-/*     unsigned int i; */
-/*         for ( i = 0 ; i < 257 ; i++ ) */
-/* 	  Count[ i ] = 0; */
-/*         for ( i = 0 ; i < (unsigned int) buflen ; i++ ) */
-/* 	  if ( i == last ) */
-/* 	    Count[ 256 ]++; */
-/* 	  else */
-/* 	    Count[ buffer[ i ] ]++; */
-/*         int sum = 0; */
-/*         for ( i = 0 ; i < 257 ; i++ ) { */
-/* 	  RunningTotal[ i ] = sum; */
-/* 	  sum += Count[ i ]; */
-/* 	  Count[ i ] = 0; */
-/*         } */
-
-/* 	for ( i = 0 ; i < (unsigned int) buflen ; i++ ) { */
-/*             int index; */
-/*             if ( i == last ) */
-/*                 index = 256; */
-/*             else */
-/*                 index = buffer[ i ]; */
-/*             T[ Count[ index ] + RunningTotal[ index ] ] = i; */
-/*             Count[ index ]++; */
-/*         } */
-/* 	unsigned int j; */
-/*         i = (unsigned int) first; */
-/*         for ( j = 0 ; j < (unsigned int) ( buflen - 1 ) ; j++ ) { */
-/*             putc( buffer[ i ], return_ubw ); */
-/*             i = T[ i ]; */
-/*         } */
-/*   } */
-/* } */
-/* #define ALP_SIZE 256 */
-/* void undo_bw (char *file) { */
- 
-  
-
 
 /////////////////////
 //

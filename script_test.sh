@@ -2,7 +2,7 @@
 
 for ((i = 1; 11 - $i ; i++))
 	do 
-	let "result = $((0 + ($i * 50)))"
+	let "result = $((0 + ($i * 500)))"
 	eval "echo $result"
 	eval "time ./bw tests/text $result"
 	eval "ls -all tests/text"
