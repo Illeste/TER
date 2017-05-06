@@ -15,25 +15,26 @@ static unsigned BLOCK_SIZE = SIZE_BLOCK;
 
 void undo_bw (char *file) {
   int file_fd = _open (file, 1),
-    return_ubw = _open (RETURN_UBW, 2);
+    return_ubw = _open (RETURN_UBW, 2),
+    index = _open (INDEX_BW, 1);
   
   uint8_t buffer [BLOCK_SIZE + 1];
-  int alp_size = 256;
+  unsigned int alp_size = 256;
   unsigned int transform_vector[BLOCK_SIZE + 1],
     count[alp_size + 1],
     total[alp_size + 1];
   
   while (1) {
     /* Retrieving block and first/last */
-    int length;
-    if (read (file_fd, &length, sizeof (int)) == 0)
+    unsigned int length;
+    if (read (index, &length, sizeof (int)) == 0)
       break;
     read (file_fd, (char *)buffer, length);
-    int first, last;
-    read (file_fd, &first, sizeof (int));
-    read (file_fd, &last, sizeof (int));
+    unsigned int first, last;
+    read (index, &first, sizeof (int));
+    read (index, &last, sizeof (int));
 
-    int i;
+    unsigned int i;
     
     for (i = 0; i < alp_size + 1; i++)
       count[i] = 0;
@@ -61,7 +62,7 @@ void undo_bw (char *file) {
        count[index]++;
      }
 
-      int j;
+      unsigned int j;
       i = first;
       for (j = 0 ; j <  (length - 1) ; j++) {
 	write (return_ubw, &buffer[i], 1);
@@ -161,10 +162,9 @@ void add_data_on_tree (node_t *tree, uint16_t size_read, uint64_t encode_read,
 }
 
 node_t *create_dictionnary (char *encode_huf) {
-  uint16_t data_read;
+  uint16_t data_read = 0;
   int size_data_read = sizeof (uint16_t) * BYTES_SIZE;
-  unsigned i_data_read;
-  data_read = data_read ^ data_read;
+  unsigned i_data_read = 0;
   /* Use to explain what we search */
   unsigned mode = 1;
   // nb de bits déjà copier
@@ -275,12 +275,10 @@ void decomp_huffman (node_t *tree, char *file_to_decode,
   int huff_prev_result = _open (file_to_decode, 1);
   /* Save the decode_huffman */
   int huff_decode_file = _open (result_file, 2);
-  uint8_t data_read;
-  uint64_t encode_read;
+  uint8_t data_read = 0;
+  uint64_t encode_read = 0;
   int size_data_read = sizeof (data_read) * BYTES_SIZE;
   int size_encode_read = sizeof (encode_read) * BYTES_SIZE;
-  data_read = data_read ^ data_read;
-  encode_read = encode_read ^ encode_read;
   unsigned i_encode_read = 0;
   while (read (huff_prev_result, &data_read, sizeof (uint8_t)) > 0) {
     cpy_data (&encode_read, size_encode_read, i_encode_read,
@@ -364,7 +362,7 @@ int main (int argc, char **argv) {
   node_t *dictionnary = create_dictionnary (ENCODE_HUF);
   decomp_huffman (dictionnary, RETURN_HUF, INV_HUFF);
   delete_dictionnary (dictionnary);
-  undo_mtf(RETURN_ENC, DICTIONNARY_ENC, RETURN_UMTF);
-  undo_bw (RETURN_BW);
+  undo_mtf(INV_HUFF, DICTIONNARY_ENC, RETURN_UMTF);
+  undo_bw (RETURN_UMTF);
   return EXIT_SUCCESS;
 }

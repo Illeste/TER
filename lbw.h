@@ -25,12 +25,13 @@
 #define HUFF_SIZE 8
 
 /* Amount of data scanned in Huffman */
-#define DATA_READ 50000
+#define DATA_READ 500000
 /* Name of in betwwen files for storage */
 #define RETURN_BW           "result_bw"
 #define RETURN_ENC          "result_encode"
 #define DICTIONNARY_ENC     ".dico_enc"
 #define RETURN_HUF          "result_huffman"
+#define INDEX_BW            ".index_bw"
 #define ENCODE_HUF          ".code_huff"
 #define SIZE_HUF            ".size_huff"
 #define RETURN_UBW          "file"

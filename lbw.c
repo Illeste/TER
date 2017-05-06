@@ -39,7 +39,7 @@ void print_array (uint16_t a) {
 
 void print_array2 (uint16_t a) {
   int i;
-  for (i = 15; i >= 0; i--)
+  for (i = 7; i >= 0; i--)
     (a & (1 << i)) == 0 ?printf("0"): printf("1");
   printf(" ");
 }

@@ -28,7 +28,8 @@ int compare (const int *i1, const int *i2) {
 
 void bw (char *file) {
   int fd = _open (file, 1),
-    result_file = _open (RETURN_BW, 2);
+    result_file = _open (RETURN_BW, 2),
+    index = _open (INDEX_BW, 2);
   int indexes[BLOCK_SIZE + 1];  
   buffer = malloc (sizeof (uint8_t) * BLOCK_SIZE);
   while(1) {
@@ -38,7 +39,7 @@ void bw (char *file) {
       break;
     /* Write how many bytes we will write, including the marker */
     int l = block_size + 1;
-    write (result_file, (char *) &l, sizeof(int));
+    write (index, (char *) &l, sizeof(int));
     /* We don't copy and shift the string, only pass a pointer */
     int i;
     for (i = 0 ; i <= block_size ; i++)
@@ -47,14 +48,14 @@ void bw (char *file) {
     qsort (indexes, (int)(block_size + 1), sizeof (int),
 	   (int (*)(const void *, const void *)) compare);
 
-    /* Reconstruct the L column :
-     *
-    */
+
     int first;
     int last;
     for (i = 0 ; i <= block_size ; i++) {
+      /* Beginning of the block*/
       if (indexes[i] == 1)
         first = i;
+      /* End of the block */
       if (indexes[i] == 0) {
 	last = i;
 	/* End of string marker */
@@ -64,8 +65,8 @@ void bw (char *file) {
       else
         write (result_file, &buffer[indexes[i] - 1], sizeof (char));
     }
-    write (result_file, (char *) &first,sizeof (int));
-    write (result_file, (char *) &last, sizeof (int));
+    write (index, (char *) &first,sizeof (int));
+    write (index, (char *) &last, sizeof (int));
   }
   free (buffer);
   close (fd);
@@ -513,7 +514,7 @@ void huffman () {
 
 /* The archive is composed by
  * <size .code_huff> + <.code_huff> + <size .dico_enc> + <.dico_enc>
- * + <.size_huff> + <result_huffman>
+ * + <size .index_bw>+ <index_bw> + <.size_huff> + <result_huffman>
  */
 void archive_compress (char *file) {
   /* Archive is named <file>.bw */
@@ -530,6 +531,7 @@ void archive_compress (char *file) {
   int code_h = _open (ENCODE_HUF, 1),
     dico_enc = _open (DICTIONNARY_ENC, 1),
     size_huff= _open (SIZE_HUF, 1),
+    index_bw = _open (INDEX_BW, 1),
     res_huff = _open (RETURN_HUF, 1);
 
   int size = lseek (code_h, 0, SEEK_END);
@@ -548,6 +550,12 @@ void archive_compress (char *file) {
   while (read (size_huff, &buffer, 1) > 0)
     write (fd, &buffer, 1);
 
+  size = lseek (index_bw, 0, SEEK_END);
+  lseek (index_bw, 0, SEEK_SET);
+  write (fd, &size, 2);
+  while (read (index_bw, &buffer, 1) > 0)
+    write (fd, &buffer, 1);
+  
   while (read (res_huff, &buffer, 1) > 0)
     write (fd, &buffer, 1);
 
