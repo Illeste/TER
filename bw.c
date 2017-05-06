@@ -28,9 +28,9 @@ int compare (const int *i1, const int *i2) {
 
 void bw (char *file) {
   int fd = _open (file, 1),
-    result_file = _open (RETURN_BW, 2),
-    index = _open (INDEX_BW, 2);
-  int indexes[BLOCK_SIZE + 1];  
+  result_file = _open (RETURN_BW, 2),
+  index = _open (INDEX_BW, 2);
+  int indexes[BLOCK_SIZE + 1];
   buffer = malloc (sizeof (uint8_t) * BLOCK_SIZE);
   while(1) {
     /* Read from file */
@@ -46,7 +46,7 @@ void bw (char *file) {
       indexes[i] = i;
 
     qsort (indexes, (int)(block_size + 1), sizeof (int),
-	   (int (*)(const void *, const void *)) compare);
+          (int (*)(const void *, const void *)) compare);
 
 
     int first;
@@ -57,10 +57,10 @@ void bw (char *file) {
         first = i;
       /* End of the block */
       if (indexes[i] == 0) {
-	last = i;
-	/* End of string marker */
-	char c = '$';
-	write (result_file, &c, sizeof (char));
+        last = i;
+        /* End of string marker */
+        char c = '$';
+        write (result_file, &c, sizeof (char));
       }
       else
         write (result_file, &buffer[indexes[i] - 1], sizeof (char));
@@ -346,8 +346,7 @@ void huffman () {
     tab[i] = NULL;
   unsigned nb_letters = 0;
   /* Count the amount of each letter */
-  for (i = 0; read (fd, &data, HUFF_SIZE / BYTES_SIZE) > 0 &&
-              i < DATA_READ; i++) {
+  while (read (fd, &data, HUFF_SIZE / BYTES_SIZE) > 0) {
     if (tab[(int)data] == NULL) {
       node_t *new_data = malloc (sizeof (node_t));
       new_data->data = data;
@@ -555,7 +554,7 @@ void archive_compress (char *file) {
   write (fd, &size, 2);
   while (read (index_bw, &buffer, 1) > 0)
     write (fd, &buffer, 1);
-  
+
   while (read (res_huff, &buffer, 1) > 0)
     write (fd, &buffer, 1);
 
