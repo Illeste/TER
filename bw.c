@@ -517,7 +517,6 @@ void huffman () {
  */
 void archive_compress (char *file) {
   /* Archive is named <file>.bw */
-
   int len = strlen (file) + strlen (".bw");
   char *archive = malloc (len);
   strcpy (archive, file);
@@ -533,34 +532,27 @@ void archive_compress (char *file) {
     index_bw = _open (INDEX_BW, 1),
     res_huff = _open (RETURN_HUF, 1);
 
-  int size = lseek (code_h, 0, SEEK_END);
-  lseek (code_h, 0, SEEK_SET);
-  write (fd, &size, 2);
+  int files[5] = {code_h, dico_enc, index_bw, size_huff, res_huff};
+  int size;
   char buffer[1];
-  while (read (code_h, &buffer, 1) > 0)
-    write (fd, &buffer, 1);
-
-  size = lseek (dico_enc, 0, SEEK_END);
-  lseek (dico_enc, 0, SEEK_SET);
-  write (fd, &size, 2);
-  while (read (dico_enc, &buffer, 1) > 0)
-    write (fd, &buffer, 1);
-
-  while (read (size_huff, &buffer, 1) > 0)
-    write (fd, &buffer, 1);
-
-  size = lseek (index_bw, 0, SEEK_END);
-  lseek (index_bw, 0, SEEK_SET);
-  write (fd, &size, 2);
-  while (read (index_bw, &buffer, 1) > 0)
-    write (fd, &buffer, 1);
-
-  while (read (res_huff, &buffer, 1) > 0)
-    write (fd, &buffer, 1);
-
-  close (code_h);
-  close (dico_enc);
-  close (size_huff);
+  for (int i = 0; i < 5; i++) {
+    size = 0;
+    if (i < 3) {
+      size = lseek (files[i], 0, SEEK_END);
+      lseek (files[i], 0, SEEK_SET);
+      write (fd, &size, 4);
+    }
+    while (read (files[i], &buffer, 1) > 0)
+      write (fd, &buffer, 1);
+  }
+  
+  unlink (ENCODE_HUF);
+  unlink (DICTIONNARY_ENC);
+  unlink (SIZE_HUF);
+  unlink (INDEX_BW);
+  //  unlink (RETURN_BW);
+  unlink (RETURN_ENC);
+  unlink (RETURN_HUF);
   close (fd);
   free (archive);
 }

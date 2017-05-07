@@ -267,12 +267,12 @@ uint64_t get_nb_writing_bits () {
   return nb;
 }
 
-void decomp_huffman (node_t *tree, char *file_to_decode,
+void decomp_huffman (node_t *tree, int file_to_decode,
                      char *result_file) {
   uint64_t nb_bits_on_file = get_nb_writing_bits ();
   if (verbose)
     printf ("\nnb_bits_on_file = %lu\n", nb_bits_on_file);
-  int huff_prev_result = _open (file_to_decode, 1);
+  int huff_prev_result = file_to_decode;
   /* Save the decode_huffman */
   int huff_decode_file = _open (result_file, 2);
   uint8_t data_read = 0;
@@ -318,14 +318,48 @@ void delete_dictionnary (node_t *tree) {
   free (tree);
 }
 
+int uncompress_archive (char *file) {
+  int len = strlen (file);
+  /* If the file isn't a ".bw" file */
+  if (file[len - 3] != '.' ||
+      file[len - 2] != 'b' ||
+      file[len - 1] != 'w') {
+    perror ("BW: Cannot uncompress this file \n");
+    exit (EXIT_FAILURE);
+  }
+  int fd =  _open (file, 1);
+
+  int code_h = _open (ENCODE_HUF, 2),
+    dico_enc = _open (DICTIONNARY_ENC, 2),
+    size_huff= _open (SIZE_HUF, 2),
+    index_bw = _open (INDEX_BW, 2);
+
+  int files[4] = {code_h, dico_enc, index_bw, size_huff};
+  int size;
+  char buff[1];
+  for (int i = 0; i < 4; i++) {
+    if (i != 3) {
+      read (fd, &size, 4);
+      for (int j = 0; j < size; j++) {
+	read (fd, &buff, 1);
+	write (files[i], &buff, 1);
+      }
+    }
+    /* size_huff file is just 8 bytes */
+    else {
+      uint64_t b;
+      read (fd, &b, sizeof (uint64_t));
+      write (size_huff, &b, sizeof (uint64_t));
+    }
+  }
+  close (code_h);
+  close (dico_enc);
+  close (size_huff);
+  close (index_bw);
+  return fd;
+}
+
 int main (int argc, char **argv) {
-  /* Ouverture fichier compressé
-   * + Huffman a l'eners : récupère le fichier post mft
-   * donc mtf dans le meme sens, copier coller fonction
-   * bw decompression
-   *
-   * Retourner, ecrire dans meme fichier/ailleurs decompression
-   */
   int optc;
   static struct option long_opts[] =
   {
@@ -354,15 +388,33 @@ int main (int argc, char **argv) {
         usage(EXIT_FAILURE, argv[0]);
     }
   }
-  /* Decompresser archive de l'entrée */
-  if (argc == 3)
-    BLOCK_SIZE = atoi (argv[2]);
-  else
-    BLOCK_SIZE = atoi (argv[1]);
+  switch (argc) {
+    case 4:
+      BLOCK_SIZE = atoi (argv[3]);
+      break;
+    case 3:
+      BLOCK_SIZE = atoi (argv[2]);
+      break;
+  default:
+    break;
+  }
+  /* Retrieve files in the archive */
+  int file_fd = uncompress_archive (argv[1]);
+  
   node_t *dictionnary = create_dictionnary (ENCODE_HUF);
-  decomp_huffman (dictionnary, RETURN_HUF, INV_HUFF);
+  decomp_huffman (dictionnary, file_fd, INV_HUFF);
   delete_dictionnary (dictionnary);
+  close (file_fd);
   undo_mtf(INV_HUFF, DICTIONNARY_ENC, RETURN_UMTF);
   undo_bw (RETURN_UMTF);
+
+  /* Removing created files */
+  unlink (ENCODE_HUF);
+  unlink (DICTIONNARY_ENC);
+  unlink (SIZE_HUF);
+  unlink (INDEX_BW);
+  unlink (INV_HUFF);
+  unlink (RETURN_UMTF);
+  unlink (argv[1]);
   return EXIT_SUCCESS;
 }
