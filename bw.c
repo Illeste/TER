@@ -12,18 +12,19 @@ unsigned BLOCK_SIZE = SIZE_BLOCK;
 //////////////////////////////
 
 long block_size;
-uint8_t *buffer;
+uint8_t *buff;
 
 int compare (const int *i1, const int *i2) {
-  unsigned int l1 = (unsigned int) (block_size - *i1);
-  unsigned int l2 = (unsigned int) (block_size - *i2);
-  int result;
-  result = memcmp (buffer + *i1, buffer + *i2,
+  int l1 = block_size - *i1;
+  int l2 = block_size - *i2;
+  int res;
+  /* Add i1 and i2 to shift before comparing */
+  res = memcmp (buff + *i1, buff + *i2,
                    l1 < l2 ? l1 : l2);
-  if (result == 0)
+  if (res == 0)
     return l2 - l1;
-    else
-      return result;
+  else
+    return res;
 }
 
 void bw (char *file) {
@@ -31,10 +32,10 @@ void bw (char *file) {
   result_file = _open (RETURN_BW, 2),
   index = _open (INDEX_BW, 2);
   int indexes[BLOCK_SIZE + 1];
-  buffer = malloc (sizeof (uint8_t) * BLOCK_SIZE);
+  buff = malloc (sizeof (uint8_t) * BLOCK_SIZE);
   while(1) {
     /* Read from file */
-    block_size = read (fd, (char *) buffer, BLOCK_SIZE);
+    block_size = read (fd, (char *) buff, BLOCK_SIZE);
     if (block_size == 0)
       break;
     /* Write how many bytes we will write, including the marker */
@@ -63,12 +64,12 @@ void bw (char *file) {
         write (result_file, &c, sizeof (char));
       }
       else
-        write (result_file, &buffer[indexes[i] - 1], sizeof (char));
+        write (result_file, &buff[indexes[i] - 1], sizeof (char));
     }
-    write (index, (char *) &first,sizeof (int));
+    write (index, (char *) &first, sizeof (int));
     write (index, (char *) &last, sizeof (int));
   }
-  free (buffer);
+  free (buff);
   close (fd);
   close (result_file);
 }
