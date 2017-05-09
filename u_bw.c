@@ -35,7 +35,7 @@ void undo_bw (char *file) {
     read (index, &last, sizeof (int));
 
     unsigned int i;
-    
+    /* Creating the transformation vector */
     for (i = 0; i < alp_size + 1; i++)
       count[i] = 0;
     for (i = 0; i < length; i++) {
@@ -44,7 +44,6 @@ void undo_bw (char *file) {
       else
 	count[buffer[i]]++;
     }
-
      int sum = 0;
      for (i = 0 ; i < alp_size + 1 ; i++) {
        total[i] = sum;
@@ -52,7 +51,7 @@ void undo_bw (char *file) {
        count[i] = 0;
      }
 
-     for (i = 0 ; i <  length ; i++) {
+     for (i = 0 ; i < length ; i++) {
        int index;
        if (i == last)
 	 index = alp_size;
@@ -62,6 +61,7 @@ void undo_bw (char *file) {
        count[index]++;
      }
 
+      /* Reconstructing the word using the transformation vector */  
       unsigned int j;
       i = first;
       for (j = 0 ; j <  (length - 1) ; j++) {
