@@ -17,7 +17,7 @@ ubw: u_bw.c lbw.c lbw.h
 	$(CC) $^ $(CFLAGS) $(CPPFLAGS) -o $@ 
 
 clean:
-	@rm -f *.o $(EXE)
+	@rm -f *.o file *.bw $(EXE)
 
 help:
 	@echo "Usage:"

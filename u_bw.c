@@ -12,18 +12,17 @@ static unsigned BLOCK_SIZE = SIZE_BLOCK;
 //////////////////////////////
 
 /* Given a file and indexes, reverses the Burrows Wheeler transformation */
-
 void undo_bw (char *file) {
   int file_fd = _open (file, 1),
     return_ubw = _open (RETURN_UBW, 2),
     index = _open (INDEX_BW, 1);
-  
+
   uint8_t buffer [BLOCK_SIZE + 1];
   unsigned int alp_size = 256;
   unsigned int transform_vector[BLOCK_SIZE + 1],
     count[alp_size + 1],
     total[alp_size + 1];
-  
+
   while (1) {
     /* Retrieving block and first/last */
     unsigned int length;
@@ -40,38 +39,39 @@ void undo_bw (char *file) {
       count[i] = 0;
     for (i = 0; i < length; i++) {
       if (i == last)
-	count[alp_size]++;
+        count[alp_size]++;
       else
-	count[buffer[i]]++;
+        count[buffer[i]]++;
     }
-     int sum = 0;
-     for (i = 0 ; i < alp_size + 1 ; i++) {
-       total[i] = sum;
-       sum += count[i];
-       count[i] = 0;
-     }
 
-     for (i = 0 ; i < length ; i++) {
-       int index;
-       if (i == last)
-	 index = alp_size;
-       else
-	 index = buffer[i];
-       transform_vector[count[index] + total[index]] = i;
-       count[index]++;
-     }
+    int sum = 0;
+    for (i = 0 ; i < alp_size + 1 ; i++) {
+      total[i] = sum;
+      sum += count[i];
+      count[i] = 0;
+    }
 
-      /* Reconstructing the word using the transformation vector */  
-      unsigned int j;
-      i = first;
-      for (j = 0 ; j <  (length - 1) ; j++) {
-	write (return_ubw, &buffer[i], 1);
-	i = transform_vector[i];
-      }
+    for (i = 0 ; i <  length ; i++) {
+      int index;
+      if (i == last)
+        index = alp_size;
+      else
+        index = buffer[i];
+      transform_vector[count[index] + total[index]] = i;
+      count[index]++;
+    }
+
+    /* Reconstructing the word using the transformation vector */
+    unsigned int j;
+    i = first;
+    for (j = 0 ; j <  (length - 1) ; j++) {
+      write (return_ubw, &buffer[i], 1);
+      i = transform_vector[i];
+    }
   }
   close (file_fd);
   close (return_ubw);
-}  
+}
 
 /////////////////////
 //
@@ -167,7 +167,7 @@ node_t *create_dictionnary (char *encode_huf) {
   unsigned i_data_read = 0;
   /* Use to explain what we search */
   unsigned mode = 1;
-  // nb de bits déjà copier
+  /* nb bits already move */
   int nb_bits_cpy = 0;
   /* Use to take the word */
   uint64_t word_read = 0;
@@ -183,26 +183,26 @@ node_t *create_dictionnary (char *encode_huf) {
   /* Save the encode_huffman */
   int huff_code_file = _open (encode_huf, 1);
 
-  // Tant que l'on a des truc à lire; on lit
+  /* While we can read the file */
   while (read (huff_code_file, &data_read, sizeof (uint16_t)) > 0) {
     bool need_more_data = false;
     i_data_read = 0;
     while (!need_more_data) {
       switch (mode) {
-        // recherche du word
+        /* research of word */
         case 1:
           i_cpy = cpy_data (&word_read, HUFF_SIZE, nb_bits_cpy,
                             (uint64_t)data_read, size_data_read, i_data_read);
           nb_bits_cpy += i_cpy;
           i_data_read += i_cpy;
-          // S'il ne reste plus de bits à copier pour le word
+          /* If the copy is finishing */
           if (nb_bits_cpy == HUFF_SIZE) {
             nb_bits_cpy = 0;
             mode = 2;
           }
           break;
 
-        // recherche de la size de l'encode
+        /* research the size of encode */
         case 2:
           i_cpy = cpy_data (&size_read, HUFF_SIZE, nb_bits_cpy,
                             (uint64_t)data_read, size_data_read, i_data_read);
@@ -214,7 +214,7 @@ node_t *create_dictionnary (char *encode_huf) {
           }
           break;
 
-        // recherche de l'encode
+        /* Research of encode */
         case 3:
           i_cpy = cpy_data (&encode_read, (int)size_read, nb_bits_cpy,
                             (uint64_t)data_read, size_data_read, i_data_read);
@@ -341,11 +341,11 @@ int uncompress_archive (char *file) {
     if (i != 3) {
       read (fd, &size, 4);
       for (int j = 0; j < size; j++) {
-	read (fd, &buff, 1);
-	write (files[i], &buff, 1);
+        read (fd, &buff, 1);
+        write (files[i], &buff, 1);
       }
     }
-    /* size_huff file is just 8 bytes */
+    /* Size_huff file is just 8 bytes */
     else {
       uint64_t b;
       read (fd, &b, sizeof (uint64_t));
@@ -367,7 +367,6 @@ int main (int argc, char **argv) {
     {"help",      no_argument,        0,    'h'},
     {NULL,        0,                  NULL, 0}
   };
-  /* if (argc != 2) perror ("Usage: ubw <file>"); exit (EXIT_FAILURE); */
   int nb_optc = 0;
   while ((optc = getopt_long (argc, argv, "vh", long_opts, NULL)) != -1)
   {
@@ -388,6 +387,11 @@ int main (int argc, char **argv) {
         usage(EXIT_FAILURE, argv[0]);
     }
   }
+  /* Catch parameters and use them */
+  if (argc - nb_optc != 3) {
+    fprintf (stderr, "UBW: usage: ubw [option] <file> <BLOCK_SIZE>\n");
+    exit (EXIT_FAILURE);
+  }
   switch (argc) {
     case 4:
       BLOCK_SIZE = atoi (argv[3]);
@@ -400,7 +404,7 @@ int main (int argc, char **argv) {
   }
   /* Retrieve files in the archive */
   int file_fd = uncompress_archive (argv[1]);
-  
+
   node_t *dictionnary = create_dictionnary (ENCODE_HUF);
   decomp_huffman (dictionnary, file_fd, INV_HUFF);
   delete_dictionnary (dictionnary);

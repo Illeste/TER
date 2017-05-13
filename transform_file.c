@@ -10,9 +10,9 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <math.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <stdint.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #define LETTER_SIZE 8
 
@@ -69,7 +69,7 @@ int main (int argc, char **argv) {
       }
     }
   }
-  /* Si le dernier caractère n'a pas été écrit */
+  /* If the last character wasn't wroten */
   if (nb_data_write != 0) {
     while (nb_data_write != LETTER_SIZE) {
       data_to_write = data_to_write << 1;

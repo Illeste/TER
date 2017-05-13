@@ -305,20 +305,14 @@ void free_tree (node_t *node) {
   }
 }
 
-/*
-nb_bits = nb de bits dans le buffer à écrire "to_write"
-nb_cpy = nb de bits copier dans le buffer. (au cas où il ne copierai pas tout)
-nbaw = nb_bits_already_wrote = nb de bits qui a déjà été écrit
-(ce dernier peut être non utile en fonction de la taille de l'entier à copier,
-c'est à dire si la taille ne dépasse pas sizeof (uint16_t))
-*/
+/** The same functonning of cy_data, it will copy on a buffer,*
+  * and when the buffer is full, it will write it             **/
 int cpy_data_huffman (int file, uint16_t *write_buf, uint16_t data, int size_of_data,
                       int nbaw_write_buf) {
   uint16_t *buffer = write_buf;
   int size_buffer = sizeof (uint16_t) * BYTES_SIZE;
   int nbaw_buf = nbaw_write_buf;
   int nb_cpy = 0;
-  /* nbaw_data = nb_bits_already_wrote */
   int nbaw_data = 0;
   nb_cpy = cpy_data ((uint64_t *)buffer, size_buffer, nbaw_buf,
                      (uint64_t)data, size_of_data, nbaw_data);
@@ -360,7 +354,7 @@ void huffman () {
     else
       tab[(int)data]->amount++;
   }
-  /* DEBUG */
+  /* VERBOSE */
   unsigned k = 0;
   for (unsigned j = 0; j < alp_size; j++) {
     if (tab[j] != NULL) {
@@ -386,6 +380,7 @@ void huffman () {
   }
   uint8_t init_encoding = 0;
   huffman_encoding (root, array, 0, &init_encoding);
+  /* VERBOSE */
   if (verbose) {
     /* Print encoding */
     printf ("\nEncoding: <word> to <encoding>\n");
@@ -482,7 +477,7 @@ void huffman () {
       }
     }
   }
-  // One last value to write
+  /* One last value to write */
   if (width != 0) {
     nb_bits_writing += width;
     while (width != BYTES_SIZE) {
@@ -546,12 +541,12 @@ void archive_compress (char *file) {
     while (read (files[i], &buffer, 1) > 0)
       write (fd, &buffer, 1);
   }
-  
+
   unlink (ENCODE_HUF);
   unlink (DICTIONNARY_ENC);
   unlink (SIZE_HUF);
   unlink (INDEX_BW);
-  //  unlink (RETURN_BW);
+  unlink (RETURN_BW);
   unlink (RETURN_ENC);
   unlink (RETURN_HUF);
   close (fd);
@@ -566,11 +561,6 @@ int main (int argc, char **argv) {
     {"help",      no_argument,        0,    'h'},
     {NULL,        0,                  NULL, 0}
   };
-  /* Catch parameters and use them */
-  if (argc < 2) {
-    fprintf (stderr, "BW: usage: bw [option] <file>\n");
-    exit (EXIT_FAILURE);
-  }
   int nb_optc = 0;
   while ((optc = getopt_long (argc, argv, "vh", long_opts, NULL)) != -1) {
     if (nb_optc == 1)
@@ -588,6 +578,11 @@ int main (int argc, char **argv) {
       default:
         usage(EXIT_FAILURE, argv[0]);
     }
+  }
+  /* Catch parameters and use them */
+  if (argc - nb_optc != 3) {
+    fprintf (stderr, "BW: usage: bw [option] <file> <BLOCK_SIZE>\n");
+    exit (EXIT_FAILURE);
   }
   if (argc == 4) {
     BLOCK_SIZE = atoi (argv[3]);

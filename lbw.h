@@ -11,12 +11,11 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <math.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <stdint.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 /* Size of each block passed through Burrows Wheeler */
-/* !!!!! Faire gaffe si on depasse la taille d'un uint (8 ou 16) pour index */
 #define SIZE_BLOCK 5000
 #define BYTES_SIZE 8
 /* Size of each letter read for each part */

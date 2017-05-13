@@ -6,7 +6,7 @@ void usage(int status, char *argv)
   if (status == EXIT_SUCCESS)
   {
     fprintf(stdout,
-      "Usage: %s [OPTION] FILE\n"
+      "Usage: %s [OPTION] FILE BLOCK_SIZE\n"
       "Compress your file.\n"
       "-v, --verbose		verbose output\n"
       "-h, --help		display this help\n", argv);
@@ -80,6 +80,7 @@ void swap (list first, list to_change, list prev_to_change) {
   tmp->next = first;
 }
 
+/* It will copy the data on array, and return the nb of bits copying */
 int cpy_data (uint64_t *array, int size_of_array, int nbaw_array,
          uint64_t data, int size_of_data, int nbaw_data) {
   int i;
